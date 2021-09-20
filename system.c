@@ -71,7 +71,7 @@ int __attribute__((__section__(".text.main")))
 
   /*** DO *NOT* ADD ANY CODE IN THIS ROUTINE BEFORE THIS POINT ***/
   printk_blink("  Alvaro Moreno  \n");
-  printk_color("  SOA  GRUP 11L   \n");
+  printk_color("  SOA  GRUP 11L  \n");
   printk("Kernel Loaded!    ");
 
   /* Initialize hardware data */

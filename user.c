@@ -8,6 +8,8 @@ int add(int p1, int p2){
 	return p1+p2;
 }
 
+int addASM(int, int);
+
 int __attribute__ ((__section__(".text.main")))
   main(void)
 {
@@ -17,5 +19,6 @@ int __attribute__ ((__section__(".text.main")))
   
   while(1) { 
   	int val1 = add(0x42, 0x666);
+  	int val2 = addASM(0x42, 0x666);
   }
 }

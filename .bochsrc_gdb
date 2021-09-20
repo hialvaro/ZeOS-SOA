@@ -1,0 +1,4 @@
+# Find more info about the '.bochsrc' file in the
+# Bochs User Manual: http://bochs.sourceforge.net/doc/docbook/user/bochsrc.html
+#include .bochsrc
+gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0

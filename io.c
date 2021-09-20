@@ -63,3 +63,59 @@ void printk(char *string)
   for (i = 0; string[i]; i++)
     printc(string[i]);
 }
+
+void printc_blink(char c)
+{
+     __asm__ __volatile__ ( "movb %0, %%al; outb $0xe9" ::"a"(c)); /* Magic BOCHS debug: writes 'c' to port 0xe9 */
+  if (c=='\n')
+  {
+    x = 0;
+    y=(y+1)%NUM_ROWS;
+  }
+  else
+  {
+    Word ch = (Word) (c & 0x00FF) | 0xF500;
+  Word *screen = (Word *)0xb8000;
+  screen[(y * NUM_COLUMNS + x)] = ch;
+    if (++x >= NUM_COLUMNS)
+    {
+      x = 0;
+      y=(y+1)%NUM_ROWS;
+    }
+  }
+}
+
+void printk_blink(char *string)
+{
+  int i;
+  for (i = 0; string[i]; i++)
+    printc_blink(string[i]);
+}
+
+void printc_color(char c)
+{
+     __asm__ __volatile__ ( "movb %0, %%al; outb $0xe9" ::"a"(c)); /* Magic BOCHS debug: writes 'c' to port 0xe9 */
+  if (c=='\n')
+  {
+    x = 0;
+    y=(y+1)%NUM_ROWS;
+  }
+  else
+  {
+    Word ch = (Word) (c & 0x00FF) | 0x0600;
+  Word *screen = (Word *)0xb8000;
+  screen[(y * NUM_COLUMNS + x)] = ch;
+    if (++x >= NUM_COLUMNS)
+    {
+      x = 0;
+      y=(y+1)%NUM_ROWS;
+    }
+  }
+}
+
+void printk_color(char *string)
+{
+  int i;
+  for (i = 0; string[i]; i++)
+    printc_color(string[i]);
+}

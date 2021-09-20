@@ -60,7 +60,6 @@ inline void set_seg_regs(Word data_sel, Word stack_sel, DWord esp)
 int __attribute__((__section__(".text.main")))
   main(void)
 {
-
   set_eflags();
 
   /* Define the kernel segment registers  and a stack to execute the 'main' code */
@@ -72,8 +71,8 @@ int __attribute__((__section__(".text.main")))
 
   /*** DO *NOT* ADD ANY CODE IN THIS ROUTINE BEFORE THIS POINT ***/
 
+  printk("Alvaro Moreno - SOA   ");
   printk("Kernel Loaded!    ");
-
 
   /* Initialize hardware data */
   setGdt(); /* Definicio de la taula de segments de memoria */
@@ -98,7 +97,7 @@ int __attribute__((__section__(".text.main")))
   copy_data((void *) KERNEL_START + *p_sys_size, usr_main, *p_usr_size);
 
 
-  printk("Entering user mode...");
+  printk("Entering user mode... :)");
 
   enable_int();
   /*

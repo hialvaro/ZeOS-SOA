@@ -72,3 +72,7 @@
 ENTRY(keyboard_handler)
       SAVE_ALL
       EOI
+      call keyboard_routine
+      RESTORE_ALL
+      /*May need to remove error code (see page 26, point 5)*/
+      iret

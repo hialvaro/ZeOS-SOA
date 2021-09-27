@@ -83,7 +83,22 @@ void setIdt()
   set_handlers();
 
   /* ADD INITIALIZATION CODE FOR INTERRUPT VECTOR */
+  setInterruptHandler(33, keyboard_handler, 0);
 
   set_idt_reg(&idtR);
+}
+
+void keyboard_routine(){
+  // Read from port 0x60 (pv = port value)
+  unsigned char pv = inb(0x60);
+  // 0x80 = 10000000
+  // 0x80 & 00000000 = 0 // Make
+  // 0x80 & 10000000 = 1 // Break
+  int isbreak = pv & 0x80;
+
+  if(isbreak == 0){ // If it is a make
+    char toprint = char_map[pv & 0x7F];
+    printc_xy(70, 20, toprint);
+  }
 }
 

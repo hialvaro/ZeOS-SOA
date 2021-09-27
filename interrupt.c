@@ -12,6 +12,9 @@
 Gate idt[IDT_ENTRIES];
 Register    idtR;
 
+void keyboard_handler();
+void clock_handler();
+
 char char_map[] =
 {
   '\0','\0','1','2','3','4','5','6',
@@ -84,6 +87,7 @@ void setIdt()
 
   /* ADD INITIALIZATION CODE FOR INTERRUPT VECTOR */
   setInterruptHandler(33, keyboard_handler, 0);
+  setInterruptHandler(32, clock_handler, 0);
 
   set_idt_reg(&idtR);
 }
@@ -95,10 +99,12 @@ void keyboard_routine(){
   // 0x80 & 00000000 = 0 // Make
   // 0x80 & 10000000 = 1 // Break
   int isbreak = pv & 0x80;
-
   if(isbreak == 0){ // If it is a make
     char toprint = char_map[pv & 0x7F];
-    printc_xy(70, 20, toprint);
+    printc_xy(60, 20, toprint);
   }
 }
 
+void clock_routine(void){
+  zeos_show_clock();
+}

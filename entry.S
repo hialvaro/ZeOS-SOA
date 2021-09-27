@@ -69,6 +69,13 @@
       movb $0x20, %al; \
       outb %al, $0x20;
 
+ENTRY(clock_handler)
+      SAVE_ALL
+      EOI
+      call clock_routine
+      RESTORE_ALL
+      iret
+
 ENTRY(keyboard_handler)
       SAVE_ALL
       EOI

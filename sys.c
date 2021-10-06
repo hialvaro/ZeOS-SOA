@@ -56,7 +56,7 @@ sys_gettime(){
 char buffer_k[256];
 #define BUFFER_SIZE 256
 
-int sys_write(int fd, char *buffer, int size){
+int sys_write(int fd, char * buffer, int size){
 
 	// Si el valor es 1, es error.
 	int fd_error = check_fd(fd, ESCRIPTURA);
@@ -69,7 +69,7 @@ int sys_write(int fd, char *buffer, int size){
 	int written_bytes; 
 
 	while(bytes > BUFFER_SIZE){
-		copy_from_user(buffer, buffer_k, BUFFER_SIZE);
+		copy_from_user(buffer+(size-bytes), buffer_k, BUFFER_SIZE);
 		written_bytes = sys_write_console(buffer_k, BUFFER_SIZE);
 		
 		buffer = buffer+BUFFER_SIZE;
@@ -77,7 +77,7 @@ int sys_write(int fd, char *buffer, int size){
 	}
 
 	// Copy the left bytes (if there are less than 256 bytes left)
-	copy_from_user(buffer, buffer_k, bytes);
+	copy_from_user(buffer+(size-bytes), buffer_k, bytes);
 	written_bytes = sys_write_console(buffer_k, bytes);
 	bytes = bytes-written_bytes;	
 

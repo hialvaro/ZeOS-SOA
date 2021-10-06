@@ -92,7 +92,7 @@ ENTRY(writeMSR)
       mov %esp, %ebp
 
       mov 0x8(%ebp), %ecx
-      mov $0x0, %edx       # High part of the value is 0.
+      movl $0, %edx       # High part of the value is 0.
       mov 0xc(%ebp), %eax # Low part of the value is stored in the second parameter.
       wrmsr
 

@@ -1,11 +1,11 @@
 #include <asm.h>
 ENTRY(write)
-	push %ebp
+	pushl %ebp
 	mov %esp,%ebp
 	
 	# Save to user stack
-	push %edx
-	push %ecx
+	pushl %edx
+	pushl %ecx
 
 	# Pass the parametes to the corresponding registers:
 	mov 0x08(%ebp), %ebx # fd -> ebx
@@ -14,15 +14,15 @@ ENTRY(write)
 	
 
 	# Now we need to put the identified of the system call in the EAX register
-	movl 0x04, %eax # Number 4 for write.
+	movl $4, %eax # Number 4 for write.
 	
 	# EDX and ECX will be modified by sysexit. We must save them so we can restore them.
-	push %ecx
-	push %edx
+	# push %ecx
+	# push %edx
 
 	# Fake dynamic link?
-	push $wr_return
-	push %ebp
+	pushl $wr_return
+	pushl %ebp
 	mov %esp,%ebp
 
 	# Entramos
@@ -45,20 +45,20 @@ wr_no_error:
 	ret
 
 ENTRY(gettime)
-	push %ebp
+	pushl %ebp
 	mov %esp,%ebp
 	
 	# Save to user stack
-	push %edx
-	push %ecx
+	pushl %edx
+	pushl %ecx
 	
 
 	# Now we need to put the identified of the system call in the EAX register
 	movl $10, %eax
 	
 	# EDX and ECX will be modified by sysexit. We must save them so we can restore them.
-	push %ecx
-	push %edx
+	#push %ecx
+	#push %edx
 
 	# Fake dynamic link?
 	push $gt_return

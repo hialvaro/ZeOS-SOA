@@ -4,7 +4,7 @@
 
 #include <asm.h>
 #include <segment.h>
-
+#include <errno.h>
 
 /**************************************************/
 /**** Save & Restore ******************************/
@@ -113,7 +113,7 @@ ENTRY(syscall_handler_sysenter)
       call *sys_call_table(, %EAX, 0x04)
       jmp sysenter_fin
 sysenter_err:
-      movl $-38, %EAX # ENOSYS WILL REPLACE
+      movl $-ENOSYS, %EAX # ENOSYS WILL REPLACE
 sysenter_fin:
       movl %EAX, 0x18(%ESP)
       RESTORE_ALL

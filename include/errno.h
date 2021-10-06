@@ -1,5 +1,4 @@
-// I got this file from a previous year solution. Not gonna lie
-// I don't know where you are supposed to get it from, tho
+// I got this definitions from the internet as I didn't find it anywhere.
 
 #ifndef _ERRNO_H_
 #define _ERRNO_H_

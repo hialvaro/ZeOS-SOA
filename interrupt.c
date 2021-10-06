@@ -15,6 +15,8 @@ Register    idtR;
 void keyboard_handler();
 void clock_handler();
 
+int zeos_ticks = 0;
+
 char char_map[] =
 {
   '\0','\0','1','2','3','4','5','6',
@@ -77,7 +79,7 @@ void setTrapHandler(int vector, void (*handler)(), int maxAccessibleFromPL)
 }
 
 void syscall_handler_sysenter();
-int writeMSR(int msr, int val);
+void writeMSR(unsigned long msr, unsigned long val);
 
 void setIdt()
 {
@@ -93,7 +95,7 @@ void setIdt()
 
   writeMSR(0x174, __KERNEL_CS);
   writeMSR(0x175, INITIAL_ESP);
-  writeMSR(0x176, (int)syscall_handler_sysenter);
+  writeMSR(0x176, (unsigned long)syscall_handler_sysenter);
 
   set_idt_reg(&idtR);
 }
@@ -112,5 +114,6 @@ void keyboard_routine(){
 }
 
 void clock_routine(void){
+  zeos_ticks++;
   zeos_show_clock();
 }

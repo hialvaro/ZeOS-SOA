@@ -44,7 +44,7 @@ int strlen(char *a)
   return i;
 }
 
-int perror(){
+void perror(){
     char buff[3];
   switch(errno)
   {

@@ -48,6 +48,11 @@ void sys_exit()
 {  
 }
 
+extern int zeos_ticks;
+sys_gettime(){
+	return zeos_ticks;
+}
+
 char buffer_k[256];
 #define BUFFER_SIZE 256
 

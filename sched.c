@@ -72,7 +72,7 @@ void init_idle (void)
 	/*Ara, com que és el procés idle, li hem d'assignar el PID = 0*/
 	pcb->PID = 0;
 
-	/* Ara utilitzem allocate_DIR per a inicialitzar el camp dir_pages_baseAaddr
+	/* Ara utilitzem allocate_DIR per a inicialitzar el camp dir_pages_baseAddr
 	   (on es troba l'adreça base del directori de pàgines del procés) amb un nou 
 	   directori on guardarem l'espai d'adreces del procés. */
 	allocate_DIR(pcb);
@@ -99,6 +99,44 @@ void init_idle (void)
 
 void init_task1(void)
 {
+	/* The code of this process is implemented in user.c.
+	This function is called from main() in system.c*/
+
+	/* Obtenim el primer element de la freequeue
+	   utilitzant list_first(). La freequeue és
+	   un vector de list_head(s).*/
+	struct list_head *t = list_first(&freequeue);
+
+	/* Ara aquest element ja no estarà lliure. Per tant
+	 l'hem d'eliminar de la freequeue:*/
+	list_del(t);
+
+	/* Ara el convertim de list_head a task_struct: */
+	struct task_struct *pcb = list_head_to_task_struct(t);
+
+	/*Ara, com que és el procés init, li hem d'assignar el PID = 1*/
+	pcb->PID = 1;
+
+	/* Ara utilitzem allocate_DIR per a inicialitzar el camp dir_pages_baseAddr
+	   (on es troba l'adreça base del directori de pàgines del procés) amb un nou 
+	   directori on guardarem l'espai d'adreces del procés. */
+	allocate_DIR(pcb);
+
+	/* Ara hem de inicialitzar el seu espai d'adreces. Utilitzem set_user_pages, que
+	alocata les pàgines físiques que contindràn l'espai d'adreces d'usuari (codi + data)
+	i afegeix a la taula de pàgines la traducció d'aquestes pàgines assignades.
+	Cal recordar que la regió de kernel ja està configurada i és igual per a tots els processos. */
+	set_user_pages(pcb);
+
+	/* Ara cal actualitzar la TSS per fer que apunti a la pila de la nova tasca (new_task). */
+	union task_union * tun1 = (union task_union*) pcb; // Obtenim el union task_union assignat al pcb de init.
+	// Hi ha un define de KERNEL_ESP a sched.h que podem utilitzar per això. 
+	tss.esp0 = KERNEL_ESP((union task_union *)pcb); //Fem que esp0 apunti a l'inici del codi d'usuari.
+	// Modifiquem el registre SYSENTER_ESP_MSR, la pila de sistema operativa.
+	writeMSR(0x175, (int) tss.esp0);
+
+	/* Assignem la pàgina del directori del procés com la pàgina de directori actual en el sistema */
+	set_cr3(pcb->dir_pages_baseAddr);
 }
 
 

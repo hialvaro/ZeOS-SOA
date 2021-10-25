@@ -127,7 +127,11 @@ void set_pe_flag()
   write_cr0(cr0);
 }
 
-/* Initializes paging for the system address space */
+/* Initializes paging for the system address space 
+This function allocates all the physical pages required for the kernel pages (both code and data pages) 
+and initializes all the page tables in the system with the translation for these kernel pages, which 
+are common for all the processes (see functions init_frames and init_table_pages)
+*/
 void init_mm()
 {
   init_table_pages();

@@ -82,11 +82,16 @@ void init_idle (void)
 	/* El procés idle no té context hardware ni context software. Només es necessita
 	  	guardar la informació que necessitarà el task_switch per a posar en marxa un
 	  	procés i fer el canvi. Aquesta informació és el ebp i l'adreça de retorn. */
+	/* from Zeos.pdf: the context switch routine will be in
+	charge of putting this process on execution. This means that we need to initialize the context of
+	the idle process as the context switch routine requires to restore the context of any process. This
+	context switch routine restores the execution of any process in the same state that it had before
+	invoking it  */
 	union task_union *tun = (union task_union*) pcb; // Task union corresponent al PCB de idle.
-	tun -> stack[KERNEL_STACK_SIZE - 1] = (unsigned long) cpu_idle; // @ret
-	tun -> stack[KERNEL_STACK_SIZE - 2] = (unsigned long) 0; // ebp (fake)
-	tun -> task.kernel_esp = &(tun->stack[KERNEL_STACK_SIZE - 2]); // mov ebp -> esp
-
+	tun -> stack[KERNEL_STACK_SIZE - 1] = (unsigned long) cpu_idle; // Store in the stack of the idle process the address of the code that it will execute (@ret)
+	tun -> stack[KERNEL_STACK_SIZE - 2] = (unsigned long) 0; // the initial value that we want to assign to register ebp when undoing the dynamic link (it can be 0)
+	tun -> task.kernel_esp = &(tun->stack[KERNEL_STACK_SIZE - 2]); // keep (in a field of its task_struct) the position of the stack where we have stored the initial value for the ebp register.
+	
 	/* Ara incialitzem la variable global idle_task, per a facilitar l'accés al 
 	task_struct del procés idle.*/
 	idle_task = pcb;

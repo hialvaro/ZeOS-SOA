@@ -47,23 +47,21 @@ wr_no_error:
 ENTRY(gettime)
 	push %ebp
 	mov %esp,%ebp
-	push %esi
-
-	# Now we need to put the identifier of the system call in the EAX register
-	mov $10, %eax
 	
 	# Save to user stack
 	push %edx
 	push %ecx
 	
+
+	# Now we need to put the identified of the system call in the EAX register
+	movl $10, %eax
+	
 	# EDX and ECX will be modified by sysexit. We must save them so we can restore them.
 	#push %ecx
 	#push %edx
 
-	leal gt_return,%esi
-	push %esi
-	
 	# Fake dynamic link?
+	push $gt_return
 	push %ebp
 	mov %esp,%ebp
 
@@ -73,19 +71,15 @@ ENTRY(gettime)
 gt_return:
 	# Comprobamos si hay error en la ejecución de la syscall
 	pop %ebp
-	pop %esi
-
+	add $4, %esp
 	pop %edx
 	pop %ecx
-
 	cmp $0, %eax
 	jge gt_no_error
+	# Si hay error, preparamos el contexto para retornar correctamente el código.
 	neg %eax # Negamos EAX para obtener el valor absoluto
 	mov %eax, errno
 	mov -1, %eax
-	# Si hay error, preparamos el contexto para retornar correctamente el código.
 gt_no_error:
-	pop %esi
-	mov %ebp, %esp
 	pop %ebp
 	ret

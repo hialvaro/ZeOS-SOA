@@ -139,6 +139,50 @@ void init_task1(void)
 	set_cr3(pcb->dir_pages_baseAddr);
 }
 
+void inner_task_switch(union task_union *new_task){
+	/* Primer cal actualitzar el punter de la pila de sistema a la TSS per a que apunti la pila de la 
+	nova tasca. */
+	//Fem que esp0 apunti a l'inici del codi d'usuari.
+	tss.esp0 = KERNEL_ESP((union task_union *)new_task); 
+	// Modifiquem el registre SYSENTER_ESP_MSR, la pila de sistema operativa.
+	writeMSR(0x175, (int) tss.esp0);
+
+	/* A continuació canviem l'espai d'adreces d'usuari. Per a fer això s'ha d'actualitzar el directori
+	de pàgines actual. Per a fer-ho, haurem de modificar el registre cr3 per a que apunti al directori de
+	la nova tasca. Això també provoca un flush del TLB. */
+	// get_DIR: Returns the Page Directory address for a task
+	set_cr3(get_DIR(&(new_task->task)));
+
+	/* Con asm se puede hacer uso de assembler en el mismo código de una función de C 
+	   La primera variable se referencia como %0 y la segunda como %1 (si hay 2)*/
+	/* Ahora hay que guardar el valor actual de EBP al PCB. EBP contiene la dirección de la pila de sistema actual, 
+	donde empieza inner_task_switch */
+	// La siguiente función hace un mov %esp, %ebp
+	__asm__ __volatile__ ( 
+		"mov %%ebp,%0" //%0 indica la variable
+		: "=g" (current()->kernel_esp) // =g indica que la variable entre paréntesis se usa como destino.
+		:); //No hay variable origen
+
+	/* El siguiente paso es cambiar la pila de sistema actual haciendo que el registro EBP apunte al valor de EBP
+	guardado en el PCB de la nueva tarea */
+	// Esta funcion equivale a un mov del valor de ebp del pcb a esp.
+	__asm__ __volatile__ (
+		"mov %0, %%esp"
+		: // No hay variable destino
+		: "g" (new_task->task.kernel_esp)); // g indica que la variable entre paréntesis es de origen
+
+	/* Ahora se debe restaurar el registro EBP de la pila */
+	__asm__ __volatile__ (
+		"pop %%ebp"
+		: //No hay destino
+		:); //No hay origen
+
+	/* Finalmente, retornamos a la rutina que ha llamado a inner_task_switch haciendo un RET */
+	__asm__ __volatile__ (
+		"ret"
+		:
+		:);
+}
 
 void init_sched()
 {

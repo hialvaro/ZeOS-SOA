@@ -147,6 +147,17 @@ int sys_fork()
 
 void sys_exit()
 {  
+	struct task_struct *destroy = current();
+	page_table_entry *destroy_PT = get_PT(destroy);
+	for(int i = 0; i<NUM_PAG_DATA; ++i){
+		free_frame(get_frame(destroy_PT, i+PAG_LOG_INIT_DATA));
+		del_ss_pag(destroy_PT, i+PAG_LOG_INIT_DATA);
+	}
+
+	destroy->PID = -1;
+	destroy->dir_pages_baseAddr = NULL;
+	update_process_state_rr(destroy, &freequeue);
+	sched_next_rr();
 }
 
 sys_gettime(){

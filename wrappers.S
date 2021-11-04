@@ -124,3 +124,43 @@ gp_return:
 gp_no_error:
 	pop %ebp
 	ret
+
+ENTRY(fork)
+	push %ebp
+	mov %esp,%ebp
+	
+	# Save to user stack
+	push %edx
+	push %ecx
+	
+
+	# Now we need to put the identified of the system call in the EAX register
+	movl $2, %eax
+	
+	# EDX and ECX will be modified by sysexit. We must save them so we can restore them.
+	#push %ecx
+	#push %edx
+
+	# Fake dynamic link?
+	push $fork_ret
+	push %ebp
+	mov %esp,%ebp
+
+	# Entramos
+	sysenter
+
+fork_ret:
+	# Comprobamos si hay error en la ejecución de la syscall
+	pop %ebp
+	add $4, %esp
+	pop %edx
+	pop %ecx
+	cmp $0, %eax
+	jge fork_no_error
+	# Si hay error, preparamos el contexto para retornar correctamente el código.
+	neg %eax # Negamos EAX para obtener el valor absoluto
+	mov %eax, errno
+	mov -1, %eax
+fork_no_error:
+	pop %ebp
+	ret

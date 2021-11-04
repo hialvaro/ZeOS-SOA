@@ -1,7 +1,13 @@
 # ZeOS-SOA 2021-2022
 ZeOS SOA Project
 
-See [project commits](https://github.com/hialvaro/ZeOS-SOA/commits/main) for a documented guide on how I implemented all the features.
+**🇪🇸 ES** - He intentado hacer los commits lo más limpios posible, incluyendo solo el código de lo que se dice que se hace en el commit. Además los títulos del commit deberían ser suficientemente descriptivos para entender lo que se hace. Por otro lado, el código en si tiene bastantes comentarios con explicaciones detalladas.
+
+VER: [Commits del proyecto](https://github.com/hialvaro/ZeOS-SOA/commits/main)
+
+**🇬🇧 EN** - I tried to make all the commits very clean and just include what the commit says that is being done. Also, the commit itself should be very descriptive.
+
+SEE: [Project commits](https://github.com/hialvaro/ZeOS-SOA/commits/main)
 
 ## TEORIA
 S'ha adjuntat un resum força complet de la teoria de SOA elaborat a partir de les explicacións del professor a classe.

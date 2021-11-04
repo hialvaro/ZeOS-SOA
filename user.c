@@ -20,19 +20,28 @@ int __attribute__ ((__section__(".text.main")))
   
   /********WRITE********/
   if(write(1, "------- \n", 9) == -1) perror();
-  if(write(1, "\nWrite from user.c\n", 19) == -1) perror();
+  char * mesg;
+  mesg = "\n [write] Write from user.c\n";
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
   if(write(1, "------- \n", 9) == -1) perror();
   
 
   /*****GETTIME********/
-  char * time_text;
-  time_text = "\nTesting gettime() from user.c: ";
-  if(write(1, time_text, strlen(time_text)) == -1) perror();
-  itoa(gettime(), time_text); 
-  if(write(1, time_text, strlen(time_text)) == -1) perror();
-  if(write(1, " (gettime result)\n", 18) == -1) perror();
+  mesg = "\n [gettime] Testing gettime() from user.c: ";
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
+  itoa(gettime(), mesg); 
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
+  mesg = " (gettime result)\n";
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
   if(write(1, "------- \n", 9) == -1) perror();
 
+/**********GETPID********/
+mesg = "\n [getpid] My PID: ";
+if(write(1, mesg, strlen(mesg)) == -1) perror();
+int pid = getpid();
+itoa(pid, mesg);
+if(write(1, mesg, strlen(mesg)) == -1) perror();
+if(write(1, "\n ------- \n", 9) == -1) perror();
 
   while(1) { 
   	//int val1 = add(0x42, 0x666);

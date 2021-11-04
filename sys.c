@@ -19,7 +19,7 @@
 #define ESCRIPTURA 1
 
 extern int zeos_ticks;
-extern struct list_head freequeue;
+extern struct list_head freequeue, readyqueue;
 int pid_next = 2;
 
 int check_fd(int fd, int permissions)
@@ -43,11 +43,11 @@ int ret_from_fork() {
 	return 0;
 }
 
+int globalpid = 100;
 int sys_fork()
 {
-	int PID = -1;
 	/* Se comprueba si la freequeue está vacía. Si es así se retorna un error */
-	if(list_empty(&freequeue) == 1) return -EAGAIN;
+	if(list_empty(&freequeue)) return -ENOMEM;
 
 	/* Se coge el primer task struct de la freequeue y se elimina de la lista.
 	Ya que va a ser ejecutado. */
@@ -55,17 +55,17 @@ int sys_fork()
 	list_del(fh);
 
 	/* Se delcara el PCB del hijo */
-	struct task_struct *child = list_head_to_task_struct(fh);
+	union task_union *child = (union task_union*)list_head_to_task_struct(fh);
 
 	/* Se copia el PCB del padre al hijo */
 	copy_data(current(), child, sizeof(union task_union));
 
 	/* Se inicializa el directorio del hijo */
-	allocate_DIR(child);
+	allocate_DIR((struct task_struct*)child);
 
 	/* Ahora se van a buscar páginas en las que mapear las páginas lógicas del hijo. */
 	/* Si no hay suficientes páginas libres, se devuelve un error. */
-	page_table_entry  *child_PT = get_PT(child);
+	page_table_entry  *child_PT = get_PT(&child->task);
 
 	int npages[NUM_PAG_DATA];
 	for(int i = 0; i < NUM_PAG_DATA; ++i){
@@ -78,8 +78,8 @@ int sys_fork()
 			// Se liberan los frames que ya han sido asignados (hasta i)
 			for(int j = 0; j < i; j++) free_frame(npages[j]);
 			// Volvemos a encolar el pcb a la freequeue
-			list_add_tail(&child->list, &freequeue);
-			return -ENOMEM;
+			list_add_tail(&child->task.list, &freequeue);
+			return -EAGAIN;
 		}
 	}
 
@@ -88,15 +88,12 @@ int sys_fork()
 
 	// Creación del espacio de direcciones del hijo
 	// A) Código de sistema y usuario
-	unsigned int parent_page;
 	for(int i = 0; i < NUM_PAG_KERNEL; i++){
-		parent_page = get_frame(parent_PT, i);
-		set_ss_pag(child_PT, i, parent_PT);
+		set_ss_pag(child_PT, i, get_frame(parent_PT, i));
 	}
 
 	for(int i = 0; i < NUM_PAG_CODE; i++){
-		parent_page = get_frame(parent_PT, PAG_LOG_INIT_CODE+i);
-		set_ss_pag(child_PT, PAG_LOG_INIT_CODE+i, parent_PT);
+		set_ss_pag(child_PT, PAG_LOG_INIT_CODE+i, get_frame(parent_PT, PAG_LOG_INIT_CODE+i));
 	}
 
 	// B) Apuntamos las nuevas páginas físicas a las direcciones lógicas del hijo.
@@ -109,24 +106,22 @@ int sys_fork()
 	int SHARED_SPACE = NUM_PAG_KERNEL+NUM_PAG_CODE;
 	int TOTAL_SPACE = NUM_PAG_CODE+NUM_PAG_KERNEL+NUM_PAG_DATA;
 
-	for(int i = SHARED_SPACE; i < TOTAL_SPACE; ++i){
-		unsigned int temp_page = i+PAG_LOG_INIT_DATA; //review 
-		set_ss_pag(parent_PT, temp_page, npages[i]);
+	for(int i = SHARED_SPACE; i < TOTAL_SPACE; i++){
+		set_ss_pag(parent_PT, i+NUM_PAG_DATA, get_frame(child_PT, i));
 		// Las páginas estan alienadas a 4KB, por ese motivo se hace shift de 12bits para 
 		// tener 3 ceros al final:
-		copy_data((void *) (i << 12), (void *) (temp_page << 12), PAGE_SIZE);
-		del_ss_pag(parent_PT, temp_page);
+		copy_data((void *) (i << 12), (void *) ((i+NUM_PAG_DATA) << 12), PAGE_SIZE);
+		del_ss_pag(parent_PT, i+NUM_PAG_DATA);
 	}
 
 	/* Forzamos un FLUSH del TLB para eliminar los accesos del padre al hijo del TLB */
 	set_cr3(get_DIR(current()));
 
 	/* f) Asignamos un nuevo PCB (y incrementamos el contador global de PID) */
-	PID = pid_next++;
-	child->PID = PID;
+	child->task.PID=++globalpid;
+	child->task.state=ST_READY;
 
-	/*     APARTADO g(i)    */
-	/*??????????????????????*/
+	/*     APARTADO g(i)  ??  */
 
 	/* h) Emulamos el contenido que espera una llamada al task switch para que se pueda ejecutar */
 	// fake ebp
@@ -136,13 +131,13 @@ int sys_fork()
 	// CTX HW
 	// ------
 	/* CTX HW (5 regs) + CTX SW (11 regs) + @handler = 17 espacios de la pila = 0x11*/
-	union task_union * child_uniontu = (union task_union *) child;
-	((unsigned long *)KERNEL_ESP(child_uniontu))[-0x13] = (unsigned long) 0; // Fake EBP
-	((unsigned long *)KERNEL_ESP(child_uniontu))[-0x12] = (unsigned long) ret_from_fork; // @ret
-	child->kernel_esp = &((unsigned long *)KERNEL_ESP(child_uniontu))[-0x13];
+	((unsigned long *)KERNEL_ESP(child))[-0x13] = (unsigned long) 0; // Fake EBP
+	((unsigned long *)KERNEL_ESP(child))[-0x12] = (unsigned long)&ret_from_fork; // @ret
+	child->task.kernel_esp = 	&((unsigned long *)KERNEL_ESP(child))[-0x13];
 
 	/*j) Devolvemos el PID del hijo */
-	return PID;
+	list_add_tail(&(child->task.list), &readyqueue);
+	return child->task.PID;
 }
 
 void sys_exit()
@@ -153,7 +148,6 @@ void sys_exit()
 		free_frame(get_frame(destroy_PT, i+PAG_LOG_INIT_DATA));
 		del_ss_pag(destroy_PT, i+PAG_LOG_INIT_DATA);
 	}
-
 	destroy->PID = -1;
 	destroy->dir_pages_baseAddr = NULL;
 	update_process_state_rr(destroy, &freequeue);

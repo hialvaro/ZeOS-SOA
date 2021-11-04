@@ -21,7 +21,7 @@ struct task_struct {
   page_table_entry * dir_pages_baseAddr;  // Adreça base del directori de pàgines del procés
   unsigned int kernel_esp; /* Posició de la pila de sistema */
   unsigned long quantum;
-  //enum state_t state; // Creo que se puede ahorar esta variable
+  enum state_t state; // Creo que se puede ahorar esta variable
 };
 
 union task_union {

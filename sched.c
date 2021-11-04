@@ -142,7 +142,7 @@ void init_task1(void)
 void inner_task_switch(union task_union *new_task){
 	/* Primer cal actualitzar el punter de la pila de sistema a la TSS per a que apunti la pila de la 
 	nova tasca. */
-	//Fem que esp0 apunti a l'inici del codi d'usuari.
+	//Fem que esp0 de la TSS apunti a l'inici del codi d'usuari.
 	tss.esp0 = KERNEL_ESP((union task_union *)new_task); 
 	// Modifiquem el registre SYSENTER_ESP_MSR, la pila de sistema operativa.
 	writeMSR(0x175, (int) tss.esp0);
@@ -153,19 +153,19 @@ void inner_task_switch(union task_union *new_task){
 	// get_DIR: Returns the Page Directory address for a task
 	set_cr3(get_DIR(&(new_task->task)));
 
+	/* Cambio a castellano ya que así lo podrá entender más gente en un futuro cuando haga esto público */
 	/* Con asm se puede hacer uso de assembler en el mismo código de una función de C 
 	   La primera variable se referencia como %0 y la segunda como %1 (si hay 2)*/
-	/* Ahora hay que guardar el valor actual de EBP al PCB. EBP contiene la dirección de la pila de sistema actual, 
-	donde empieza inner_task_switch */
-	// La siguiente función hace un mov %esp, %ebp
+	/* Ahora hay que guardar el valor actual de EBP al  kernel_esp del PCB. EBP contiene la 
+	dirección de la pila de sistema actual, donde empieza inner_task_switch */
 	__asm__ __volatile__ ( 
 		"mov %%ebp,%0" //%0 indica la variable
 		: "=g" (current()->kernel_esp) // =g indica que la variable entre paréntesis se usa como destino.
 		:); //No hay variable origen
 
-	/* El siguiente paso es cambiar la pila de sistema actual haciendo que el registro EBP apunte al valor de EBP
-	guardado en el PCB de la nueva tarea */
-	// Esta funcion equivale a un mov del valor de ebp del pcb a esp.
+	/* El siguiente paso es cambiar la pila de sistema actual haciendo que el registro EBP apunte al 
+	valor del kernel_esp de new (guardado en el PCB de la nueva tarea) */
+	// Esta funcion equivale a un mov del valor de kernel_esp del pcb a esp.
 	__asm__ __volatile__ (
 		"mov %0, %%esp"
 		: // No hay variable destino

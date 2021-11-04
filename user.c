@@ -33,15 +33,26 @@ int __attribute__ ((__section__(".text.main")))
   if(write(1, mesg, strlen(mesg)) == -1) perror();
   mesg = " (gettime result)\n";
   if(write(1, mesg, strlen(mesg)) == -1) perror();
-  if(write(1, "------- \n", 9) == -1) perror();
+  mesg = "------- \n\n";
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
 
-/**********GETPID********/
-mesg = "\n [getpid] My PID: ";
-if(write(1, mesg, strlen(mesg)) == -1) perror();
-int pid = getpid();
-itoa(pid, mesg);
-if(write(1, mesg, strlen(mesg)) == -1) perror();
-if(write(1, "\n ------- \n", 9) == -1) perror();
+  /**********GETPID********/
+  mesg = "\n [getpid] My PID: ";
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
+  int pid = getpid();
+  itoa(pid, mesg);
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
+  mesg = "------- \n\n";
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
+
+  /*********FORK**********/
+  mesg = "[fork] Forking... \n CHIDL PID: ";
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
+  int pid_child = fork();
+  itoa(pid_child, mesg);
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
+  mesg = "\n[fork] Job is done. \n ------- \n\n";
+  if(write(1, mesg, strlen(mesg)) == -1) perror();
 
   while(1) { 
   	//int val1 = add(0x42, 0x666);

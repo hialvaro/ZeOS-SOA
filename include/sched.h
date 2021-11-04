@@ -11,6 +11,7 @@
 
 #define NR_TASKS      10
 #define KERNEL_STACK_SIZE	1024
+#define QUANTUM 6
 
 enum state_t { ST_RUN, ST_READY, ST_BLOCKED };
 
@@ -19,6 +20,8 @@ struct task_struct {
   struct list_head list; // cua de task_struct
   page_table_entry * dir_pages_baseAddr;  // Adreça base del directori de pàgines del procés
   unsigned int kernel_esp; /* Posició de la pila de sistema */
+  unsigned long quantum;
+  //enum state_t state; // Creo que se puede ahorar esta variable
 };
 
 union task_union {
@@ -39,6 +42,11 @@ void init_task1(void);
 void init_idle(void);
 
 void init_sched(void);
+
+int needs_sched_rr();
+void sched_next_rr();
+void update_process_state_rr(struct task_struct *t, struct list_head *dst);
+void schedule(void);
 
 struct task_struct * current();
 

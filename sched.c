@@ -19,6 +19,7 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 extern struct list_head blocked;
 struct list_head freequeue, readyqueue;
 struct task_struct * idle_task;
+int quantum_ticks;
 
 
 /* get_DIR - Returns the Page Directory address for task 't' */
@@ -55,6 +56,75 @@ void cpu_idle(void)
 	}
 }
 
+void update_sched_data_rr(void)
+{
+	--quantum_ticks;
+}
+
+int needs_sched_rr(void)
+{ // Si se ha superado el quantum devuelve 1.
+
+	// Si el quantum es mayor que cero, se devuelve 0, aun puede seguir.
+	if(quantum_ticks > 0) return 0;
+	// Si el quantum no es mayor que cero y la lista de ready esta vacía
+	// se hace reset del quantum y sigue.
+	if(list_empty(&readyqueue)){
+		quantum_ticks = current()->quantum;
+		return 0;
+	}
+	// en caso contrario, se tiene que cambiar de proceso.
+	return 1;
+}
+
+void update_process_state_rr(struct task_struct *t, struct list_head *dst_queue)
+{ //Elimina el proceso de su cola actual y lo inserta en una nueva cola.
+	struct list_head * list_tmp = &t->list;
+	/* Si el proceso esta dentro de una lista, va a tener un puntero al elemento previo y siguiente
+	Así que solo comprobando esto podemos saber si es necesario eliminarlo de la lista dónde se encuentra*/
+	if(!(list_tmp->prev == NULL && list_tmp->next == NULL)){
+		list_del(list_tmp);
+	}
+
+	/* Si va a alguna lista se le añade. Si es running, se le deja sin colas. */
+	if (dst_queue) list_add_tail(list_tmp, dst_queue);
+}
+
+void sched_next_rr(void)
+{
+	struct task_struct *next;
+
+	// Si hay procesos en la lista de ready
+	if(!list_empty(&readyqueue)){
+		// Nos quedamos con el primero de la lista y lo eliminamos de esta.
+		struct list_head *lf = list_first(&readyqueue);
+		list_del(lf);
+		next = list_head_to_task_struct(lf);
+	}
+	else{
+		// Si la lista de ready esta vacía, se debe ejecutar el proceso idle.
+		next = idle_task;
+	}
+
+	// Se pone el estado del proceso a RUN. - Creo que no es necesario
+	// next->state=ST_RUN;
+
+	// Se asigna la variable global de quantum el quantum del proceso siguiente.
+	quantum_ticks = next->quantum;
+
+	// Se hace el task_switch al nuevo proceso.
+	task_switch(next);
+}
+
+void schedule(){
+	update_sched_data_rr();
+	if(needs_sched_rr()) {
+		update_process_state_rr(current(), &readyqueue);
+		sched_next_rr();
+	}
+}
+
+
+
 void init_idle (void)
 {
 	/* Obtenim el primer element de la freequeue
@@ -71,6 +141,7 @@ void init_idle (void)
 
 	/*Ara, com que és el procés idle, li hem d'assignar el PID = 0*/
 	pcb->PID = 0;
+	pcb->quantum=QUANTUM;
 
 	/* Ara utilitzem allocate_DIR per a inicialitzar el camp dir_pages_baseAddr
 	   (on es troba l'adreça base del directori de pàgines del procés) amb un nou 
@@ -116,6 +187,7 @@ void init_task1(void)
 
 	/*Ara, com que és el procés init, li hem d'assignar el PID = 1*/
 	pcb->PID = 1;
+	pcb->quantum = QUANTUM;
 
 	/* Ara utilitzem allocate_DIR per a inicialitzar el camp dir_pages_baseAddr
 	   (on es troba l'adreça base del directori de pàgines del procés) amb un nou 

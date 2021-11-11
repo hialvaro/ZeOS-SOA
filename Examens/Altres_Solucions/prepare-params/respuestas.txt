@@ -1,0 +1,38 @@
+Crear un fichero llamado wrappers2.S con una nueva función llamada prepare_params en la
+que se hace todo el paso de parámetros de un wrapper a registros. Modifica los wrappers
+actuales para que utilicen esta función.
+
+
+a) Escribe el código que has implementado en la función prepare_params.
+    movl 0x8(%ebp), %ebx;
+	movl 0xC(%ebp), %ecx;
+	movl 0x10(%ebp), %edx;
+	movl 0x14(%ebp), %esi;
+	movl 0x18(%ebp), %edi;
+    ret
+
+
+b) Escribe y describe las modificaciones que has hecho en el Makefile para linkar este
+fichero con la parte de usuario.
+wrappers2.s: wrappers2.S $(INCLUDEDIR)/asm.h
+	$(CPP) $(ASMFLAGS) -o $@ $<
+
+c) Escribe el código de un wrapper, cualquiera, que utilice esta función.
+/* int get_stats(int pid, struct stats *st) */
+ENTRY(get_stats)
+	pushl %ebp
+	movl %esp, %ebp
+	pushl %ebx;  // Save EBX, ESI and EDI if modified
+	movl $35, %eax
+	call prepare_params
+	int $0x80
+	popl %ebx
+	test %eax, %eax
+	js nok	// if (eax < 0) -->
+	popl %ebp
+	ret
+
+d) ¿Se podría hacer lo mismo, factorizar el código, con alguna otra parte de los
+wrappers? 
+
+Si, con el tratamiento del valor de retorno de la syscall en caso de que haya un error.

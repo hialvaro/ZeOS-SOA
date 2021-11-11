@@ -1,0 +1,30 @@
+
+define print-stack
+x $esp
+x $esp+4
+x $esp+8
+x $esp+12
+x $esp+16
+x $esp+20
+x $esp+24
+x $esp+28
+x $esp+32
+x $esp+36
+x $esp+40
+end
+document print-stack
+Print the latest values from the top of the stack
+end
+
+define pila
+print-stack
+end
+document pila
+Alias for 'print-stack'
+end
+
+echo (gdb) target remote localhost:1234\n
+target remote localhost:1234
+echo (gdb) add-symbol-file user 0x100000\n
+add-symbol-file user 0x100000
+display/i $eip

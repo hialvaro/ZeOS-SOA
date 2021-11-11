@@ -1,0 +1,309 @@
+diff --git a/Makefile b/Makefile
+index 4f674c0..b3445ee 100644
+--- a/Makefile
++++ b/Makefile
+@@ -31,7 +31,7 @@ SYSOBJ = interrupt.o entry.o sys_call_table.o io.o sched.o sys.o mm.o devices.o
+ LIBZEOS = -L . -l zeos -l auxjp
+ 
+ #add to USROBJ the object files required to complete the user program
+-USROBJ = libc.o libc-asm.o # libjp.a
++USROBJ = libc.o # libjp.a
+ 
+ all:zeos.bin
+ 
+@@ -55,9 +55,6 @@ bootsect.s: bootsect.S Makefile
+ entry.s: entry.S $(INCLUDEDIR)/asm.h $(INCLUDEDIR)/segment.h
+ 	$(CPP) $(ASMFLAGS) -o $@ $<
+ 
+-libc-asm.s: libc.S $(INCLUDEDIR)/asm.h
+-	$(CPP) $(ASMFLAGS) -o $@ $<
+-
+ sys_call_table.s: sys_call_table.S $(INCLUDEDIR)/asm.h $(INCLUDEDIR)/segment.h
+ 	$(CPP) $(ASMFLAGS) -o $@ $<
+ 
+diff --git a/entry.S b/entry.S
+index 2e00d8c..1e43f7f 100644
+--- a/entry.S
++++ b/entry.S
+@@ -115,28 +115,3 @@ fin:
+       popl %eax;
+       RESTORE_ALL
+       iret;
+-
+-/* void switch_stack(void ** save_sp, void * new_sp) NOT REALLY A FUNCTION!!! */
+-ENTRY(switch_stack)
+-	mov 4(%esp), %eax
+-	mov %ebp, (%eax)
+-	mov 8(%esp), %esp
+-	popl %ebp
+-	ret
+-
+-/* void task_switch(union task_union *new) */
+-ENTRY(task_switch)
+-	pushl %ebp
+-	movl %esp, %ebp
+-	pushl %esi
+-	pushl %edi
+-	pushl %ebx
+-	pushl 8(%ebp)
+-	call inner_task_switch
+-	addl $4, %esp
+-	popl %ebx
+-	popl %edi
+-	popl %esi
+-	popl %ebp
+-	ret
+-
+diff --git a/include/sched.h b/include/sched.h
+index 865bfbf..da6eac3 100644
+--- a/include/sched.h
++++ b/include/sched.h
+@@ -55,7 +55,6 @@ void schedule(void);
+ struct task_struct * current();
+ 
+ void task_switch(union task_union*t);
+-void switch_stack(int * save_sp, int new_sp);
+ 
+ void sched_next_rr(void);
+ 
+diff --git a/libc.S b/libc.S
+deleted file mode 100644
+index 49148d4..0000000
+--- a/libc.S
++++ /dev/null
+@@ -1,83 +0,0 @@
+-#include <asm.h>
+-
+-/* int write(int fd, char *buffer, int size) */
+-ENTRY(write)
+-	pushl %ebp
+-	movl %esp, %ebp
+-	movl $4, %eax
+-	movl 0x8(%ebp), %ebx;	//fd
+-	movl 0xC(%ebp), %ecx;	//buffer
+-	movl 0x10(%ebp), %edx;	//size
+-	int $0x80
+-	test %eax, %eax
+-	js nok	// if (eax < 0) -> 
+-	popl %ebp
+-	ret
+-
+-/* Common code for negative return */
+-nok:
+-	neg %eax
+-	mov %eax, errno
+-	mov $-1, %eax
+-	popl %ebp
+-	ret
+-
+-/* int gettime() */
+-ENTRY(gettime)
+-	pushl %ebp
+-	movl %esp, %ebp
+-	movl $10, %eax
+-	int $0x80
+-	popl %ebp
+-	ret
+-
+-/* int getpid() */
+-ENTRY(getpid)
+-	pushl %ebp
+-	movl %esp, %ebp
+-	movl $20, %eax
+-	int $0x80
+-	popl %ebp
+-	ret
+-
+-/* int fork() */
+-ENTRY(fork)
+-	pushl %ebp
+-	movl %esp, %ebp
+-	movl $2, %eax
+-	int $0x80
+-	test %eax, %eax
+-	js nok	// if (eax < 0) -->
+-	popl %ebp
+-	ret
+-
+-/* void exit() */
+-ENTRY(exit)
+-	pushl %ebp
+-	movl %esp, %ebp
+-	movl $1, %eax
+-	int $0x80
+-	popl %ebp
+-	ret
+-
+-/* int yield() */
+-ENTRY(yield)
+-	pushl %ebp
+-	movl %esp, %ebp
+-	movl $13, %eax
+-	int $0x80
+-	popl %ebp
+-	ret
+-
+-/* int get_stats(int pid, struct stats *st) */
+-ENTRY(get_stats)
+-	pushl %ebp
+-	movl %esp, %ebp
+-	movl $35, %eax
+-	movl 0x8(%ebp), %ebx;	//pid
+-	movl 0xC(%ebp), %ecx;	//st
+-	int $0x80
+-	test %eax, %eax
+-	js nok	// if (eax < 0) -->
+-	popl %ebp
+-	ret
+diff --git a/libc.c b/libc.c
+index c36441d..0d49316 100644
+--- a/libc.c
++++ b/libc.c
+@@ -51,3 +51,95 @@ void perror()
+ 
+   write(1, buffer, strlen(buffer));
+ }
++
++int write(int fd, char *buffer, int size)
++{
++  int result;
++  
++  __asm__ __volatile__ (
++	"int $0x80\n\t"
++	: "=a" (result)
++	: "a" (4), "b" (fd), "c" (buffer), "d" (size));
++  if (result<0)
++  {
++    errno = -result;
++    return -1;
++  }
++  errno=0;
++  return result;
++}
++ 
++int gettime()
++{
++  int result;
++  
++  __asm__ __volatile__ (
++	"int $0x80\n\t"
++	:"=a" (result)
++	:"a" (10) );
++  errno=0;
++  return result;
++}
++
++int getpid()
++{
++  int result;
++  
++  __asm__ __volatile__ (
++  	"int $0x80\n\t"
++	:"=a" (result)
++	:"a" (20) );
++  errno=0;
++  return result;
++}
++
++int fork()
++{
++  int result;
++  
++  __asm__ __volatile__ (
++  	"int $0x80\n\t"
++	:"=a" (result)
++	:"a" (2) );
++  if (result<0)
++  {
++    errno = -result;
++    return -1;
++  }
++  errno=0;
++  return result;
++}
++
++void exit(void)
++{
++  __asm__ __volatile__ (
++  	"int $0x80\n\t"
++	:
++	:"a" (1) );
++}
++
++int yield()
++{
++  int result;
++  __asm__ __volatile__ (
++  	"int $0x80\n\t"
++	:"=a" (result)
++	:"a" (13) );
++  return result;
++}
++
++int get_stats(int pid, struct stats *st)
++{
++  int result;
++  __asm__ __volatile__ (
++  	"int $0x80\n\t"
++	:"=a" (result)
++	:"a" (35), "b" (pid), "c" (st) );
++  if (result<0)
++  {
++    errno = -result;
++    return -1;
++  }
++  errno=0;
++  return result;
++}
+diff --git a/sched.c b/sched.c
+index 6ba7417..2d1626a 100644
+--- a/sched.c
++++ b/sched.c
+@@ -253,9 +253,46 @@ void inner_task_switch(union task_union *new)
+   /* TLB flush. New address space */
+   set_cr3(new_DIR);
+ 
+-  switch_stack(&current()->register_esp, new->task.register_esp);
++  /* Stores current ebp */
++  __asm__ __volatile__ (
++  	"movl %%ebp, %0\n\t"
++	: "=g" (current()->register_esp)
++	: );
++
++  /* Restores new esp. Now, we are in the new process */
++  __asm__ __volatile__ (
++  	"movl %0, %%esp\n\t"
++	:
++	: "g" (new->task.register_esp) );
++
++  /* Restores ebp from the stack */
++  __asm__ __volatile__ (
++  	"popl %%ebp\n\t"
++	:
++	: );
++
++  /* To prevent returning with compiler's frame recovery, we put our own ret instr */
++  __asm__ __volatile__ (
++  	"ret\n\t"
++	:
++	: );
+ }
+ 
++/* Given the new process, performs a task switch */
++void task_switch(union task_union *new)
++{
++  __asm__ __volatile__ (
++  	"pushl %esi\n\t"
++	"pushl %edi\n\t"
++	"pushl %ebx\n\t"
++	);
++  inner_task_switch(new);
++  __asm__ __volatile__ (
++  	"popl %ebx\n\t"
++	"popl %edi\n\t"
++	"popl %esi\n\t"
++	);
++}
+ 
+ /* Force a task switch assuming that the scheduler does not work with priorities */
+ void force_task_switch()

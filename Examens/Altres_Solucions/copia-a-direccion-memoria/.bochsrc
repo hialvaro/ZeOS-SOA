@@ -1,0 +1,22 @@
+#romimage: file=$BXSHARE/BIOS-bochs-latest
+#vgaromimage: file=$BXSHARE/VGABIOS-elpin-2.40
+megs: 16
+
+floppya: 1_44=./zeos.bin, status=inserted
+boot: floppy
+floppy_bootsig_check: disabled=0
+
+log: bochsout.txt
+panic: action=ask
+error: action=report
+info: action=report
+debug: action=ignore
+debugger_log: -
+
+#vga_update_interval: 300000
+#keyboard_serial_delay: 250
+#keyboard_paste_delay: 100000
+#mouse: enabled=0
+#private_colormap: enabled=0
+#keyboard_mapping: enabled=0, map=
+

@@ -1,0 +1,5 @@
+Modifica el bucle de copia de la zona de datos + pila del usuario, dentro de sys_fork, para
+que, en vez de utilizar las primeras 20 páginas libres dentro del espacio de direcciones del
+proceso padre, realice la copia utilizando solamente los 4096 bytes a partir de la dirección
+lógica 0x12C800. 12C000
+

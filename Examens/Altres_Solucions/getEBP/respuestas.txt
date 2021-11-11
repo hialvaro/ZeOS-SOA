@@ -1,0 +1,62 @@
+Queremos implementar una nueva llamada al sistema que devuelva el valor que tenía el
+registro EBP en modo usuario cuando se invoca la llamada al sistema. Su sintaxis es la
+siguiente:
+    int getEBP(unsigned long *current_EBP);
+
+Esta llamada al sistema devuelve 0 si todo ha ido bien o -1 en cualquier otro caso, poniendo
+en errno el código de error correspondiente. En current_EBP, si es posible, devuelve el valor
+del registro EBP.
+
+El número de servicio de esta llamada al sistema sera el 14.
+
+Por supuesto, queremos que el código sea eficiente y fácil de mantener.
+
+Contesta a las siguientes preguntas:
+a) ¿Qué posibles errores puede devolver la llamada al sistema?
+No hay errores posibles, el registro ebp siempre tiene un valor por lo que siempre se va a poder
+devolver algo.
+
+b) ¿Qué estructuras nuevas se tienen que añadir al sistema operativo y cuando y donde se
+inicializan?
+No se debe añadir ninguna estructura nueva.
+
+c) ¿Qué estructuras actuales se tienen que modificar del sistema operativo?
+Se modifica la syscall table para activar la llamada al sitema con identificador 14.
+
+d) Escribe el código del wrapper de la llamada al sistema
+ENTRY(getEBP)
+	pushl %ebp
+	movl %esp, %ebp
+
+	pushl %ebx;
+	movl $14, %eax
+	mov 0x8(%ebp), %ebx;
+
+	int $0x80
+
+	popl %ebx
+	cmpl $0, %eax
+	jge nok
+	
+	popl %ebp
+	ret
+
+
+e) Escribe el código de la rutina de servicio sys_getEBP
+int sys_getEBP(unsigned long *currentEBP){
+  int EBP = (unsigned long) get_ebp();
+  return 1;
+}
+
+f) (1 punto) Implementa todo el código necesario en ZeOS.
+- modificar syscalltable
+- añadir d) en user-utils.S
+- añadir e) en sys.c
+- añadir el siguiente codigo en user.c:
+  unsigned long ebp;
+  char *msg;
+  write(1,"\nTrying to get EBP..\n ",sizeof("\nTrying to get EBP..\n "));
+  itoa(getEBP(ebp),msg);
+  write(1,"\n GOT EBP..\n ",sizeof("\n GOT EBP..\n "));
+  write(1,"\nEBP: ",sizeof("\nEBP: "));
+  write(1,msg,sizeof(msg));

@@ -1,0 +1,96 @@
+Zeos Scheduler 
+ 
+Queremos modificar el planificador de ZeOS para añadir prioridades a los procesos. El proceso 
+más prioritario será el que se ejecute a continuación. Por ahora, las prioridades serán estáticas 
+y la política de planificación será no apropiativa. 
+ 
+Responde a los siguientes apartados: 
+ 
+a)  ¿Se tiene que añadir alguna estructura nueva en el sistema? En caso afirmativo, 
+descríbela(s).
+
+Se va a añadir una nueva cola, la llamaremos priorityqueue. Allí van a ir los procesos más prioritarios.
+También se puede hacer sin añadir estructuras, añadiendo los procesos prioritaros a la cabeza
+de la readyqueue y los no prioritarios a la cola. Esto solo necesitaria que se añadiese un parametro al PCB.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+b)  ¿Se tiene que modificar alguna estructura existente en el sistema? En caso afirmativo 
+indica cuales junto con las modificaciones que se tienen que hacer.
+
+Añadiremos un parámetro al PCB del proceso, lo llamaremos nice y va a ser el bit que indicará si
+el proceso es prioritario o no. nice = 0 -> prioridad; 1 => no.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+c)  Indica qué modificaciones en el código se tienen que hacer para implementar 
+prioridades.  Indica  cuales  son  las  funciones  en  el  código  modificadas  y  qué 
+modificaciones se han realizado. 
+
+sched.h: Primero vamos a modificar el task_struct de un proceso. Añadiremos un entero llamado nice que
+va a indicar si un proceso es prioritario o no. 
+    - en sched.c vamos a tener que inicializar el nice del proceso init (task1). Para eso tas1_pcb->nice=1.
+      Por defecto un proceso no es prioritario.
+
+shced.c: Añadimos la priorityqueue. 
+    - init_sched: debemos inicializar esta nueva lista con el INIT_LIST_HEAD.
+    - needs_sched_rr: Debemos añadir que se compruebe si, además de la readyqueue, también la priorityqueue esta vacía.
+    - sched_next_rr: Debemos comprobar el nice del proceso actual. Si es 1 (es prioritario), miramos la priorityqueue. Si esta vacía cogemos
+                     un proceso de la readyqueue. Pero si hay un proceso en la priorityqueue, cogemos el de priority.
+                     Si es 0 (no es prioritario) cogemos un proceso de la readyqueue.
+    - schedule: Debemos comprobar si el nice de current es 1. Si es así, hacemos un update_process_state con la readyqueue.
+                Si es prioritario, hacemos un update_process_state con la priorityqueue.
+
+sys.c>sys_fork: Añadimos la extern priorityqueue. Al final, cuando empiabamos el hijo al final de la readyqueue antes de devolver
+el PID, vamos a hacer una comprobación. Si el hijo tiene nice=1, haremos lo mismo que antes y lo añadiremos a la cola de ready.
+Si tiene nice=0, lo vamos a añadir a la cola de prioridad.
+
+Finalmente se va a necesitar algun mecanismo para poder cambiar la prioridad de un procso. Para esto usaremos una nueva llamada al sistema:
+- sys_call_table.S: asignamos la nueva llamada a una entrada.
+- wrapper.S: el wrapper de la llamada (tiene un parametro).
+- sys.c: Código de la nueva llamada:
+int sys_set_priority(int nice){
+        if(nice <= 0){
+            current()->nice = 0;
+        }
+        else{
+            current()->nice = 1;
+        }
+    return 1;
+}
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+d)  ¿Se tiene que modificar el código de alguna llamada al sistema? En caso afirmativo, 
+indica cual(es) y describe las modificaciones a realizar. 
+
+Si. La llamada a fork, debemos comprobar la prioridad de un proceso para añadirlo a la cola correspondiente.
+O para añadirlo al final o al principio segun la implementación.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+e)  El problema de este planificador es que la cola de Ready tiene que estar ordenada por 
+prioridades, lo cual baja la eficiencia de ZeOS. ¿Cómo se podría solucionar este 
+problema? 
+
+Con una nueva cola de prioridad. prioiryqueue. Ya se ha explicado.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+f)  Si implementamos aging, ¿cuándo y cómo se modificará la prioridad de los procesos? 
+
+La prioridad va a ir por números y los procesos se deberán ordenar por orden de valor de la prioridad: 0 más prioridad, 10 menos.
+Este orden se puede tener dentro de la cola de prioridad o dentro de la cola de ready.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+g)  ¿Se tiene que realizar algún cambio en el sistema para implementar una política de 
+planificación apropiativa inmediata? En caso afirmativo, indica cuál(es). 
+
+Si, el planificador debe mirar si hay procesos mas prioritarios que el actual en ejecución. Si los hay debe sacarlo
+de forma immediata y poner a ejecutar uno más prioritario.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+h)  (0,5 puntos) Implementa en Zeos el mecanismo descrito. 
+Hecho.

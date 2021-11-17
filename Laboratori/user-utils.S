@@ -100,3 +100,33 @@ ENTRY(get_stats)
 	popl %ebp
 	ret
 
+/* Semaphores */
+ENTRY(sem_init)
+	push %ebp
+	mov %esp, %ebp
+	push %ecx
+	push %ebx
+	mov 12(%ebp), %ecx   // count
+	mov 8(%ebp), %ebx    // sem_id
+	lea ret_from_sem, %eax
+	push %eax
+	push %ebp
+	movl %esp, %ebp
+	mov $21, %eax // Syscall 21 is sem_init
+	sysenter
+
+// Common Semaphores code
+ret_from_sem:
+    pop %ebp
+	add $4, %esp
+	cmp $0, %eax
+	je end_sem // Si no hay error, salta a fin
+	lea errno, %ebx
+	mov %eax, (%ebx)
+	mov $-1, %eax
+end_sem:
+	pop %ebx
+	pop %ecx
+	mov %ebp, %esp
+	pop %ebp
+	ret

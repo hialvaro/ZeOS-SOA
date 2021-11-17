@@ -28,4 +28,7 @@ int yield();
 
 int get_stats(int pid, struct stats *st);
 
+/* Semaphores */
+int sem_init(int sem_id, unsigned int count);
+
 #endif  /* __LIBC_H__ */

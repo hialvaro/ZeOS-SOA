@@ -3,8 +3,8 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 1997 Martin Mares
- *  2003 Modificat per Zeus Gómez per insertar el codi d'usuari
- *       també a la imatge del nucli en espai d'adreces separat.
+ *  2003 Modificat per Zeus GÃ³mez per insertar el codi d'usuari
+ *       tambÃ© a la imatge del nucli en espai d'adreces separat.
  */
 
 /*
@@ -162,39 +162,39 @@ int main(int argc, char ** argv)
 	}
 	close(fd);
 
+	if (lseek(1, 500, SEEK_SET) != 500)
+		die("Output: seek failed");
 	im_size = (sys_size + usr_size + 15) / 16;
 
 	fprintf (stderr, "Image is %d kB\n", (int)(sys_size + usr_size)/1024);
 	buf[0] = (im_size & 0xff);
 	buf[1] = ((im_size >> 8) & 0xff);
-	if (lseek(1, 500, SEEK_SET) != 500)
-		die("Output: seek failed");
 	if (write(1, buf, 2) != 2)
 		die("Write of image length failed");
 
+      if (lseek(1, 512, SEEK_SET) != 512)
+	  die("Output: seek failed");
 	buf[0] = (sys_size & 0xff);
 	buf[1] = ((sys_size >> 8) & 0xff);
 	buf[2] = ((sys_size >> 16) & 0xff);
 	buf[3] = 0;
-	if (lseek(1, 512, SEEK_SET) != 512)
-	  die("Output: seek failed");
 	if (write(1, buf, 4) != 4)
 	  die("Write of system length failed");
 
+      if (lseek(1, 516, SEEK_SET) != 516)
+	  die("Output: seek failed");
 	buf[0] = (usr_size & 0xff);
 	buf[1] = ((usr_size >> 8) & 0xff);
 	buf[2] = ((usr_size >> 16) & 0xff);
 	buf[3] = 0;
-	if (lseek(1, 516, SEEK_SET) != 516)
-	  die("Output: seek failed");
 	if (write(1, buf, 4) != 4)
 	  die("Write of user length failed");
-	buf[0] = (0x7E5A & 0xff);
-	buf[1] = ((0x7E5A >> 8) & 0xff);
-	buf[2] = ((0x7E5A >> 16) & 0xff);
-	buf[3] = 0;
-	if (lseek(1, 520, SEEK_SET) != 520)
+      if (lseek(1, 520, SEEK_SET) != 520)
 	  die("Output: seek failed");
+	buf[0] = (0x7E1A & 0xff);
+	buf[1] = ((0x7E1A >> 8) & 0xff);
+	buf[2] = ((0x7E1A >> 16) & 0xff);
+	buf[3] = 0;
 	if (write(1, buf, 4) != 4)
 	  die("Write of user length failed");
 

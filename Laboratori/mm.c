@@ -69,6 +69,9 @@ for (j=0; j< NR_TASKS; j++) {
       pagusr_table[j][i].bits.rw = 1;
       pagusr_table[j][i].bits.present = 1;
     }
+  /* Protect the task array by using a couple of invalid pages before and after the task array */
+  pagusr_table[j][PH_PAGE((DWord)(&protected_tasks[0]))].bits.present = 0;
+  pagusr_table[j][PH_PAGE((DWord)(&protected_tasks[11]))].bits.present = 0;
 }
 }
 
@@ -127,11 +130,7 @@ void set_pe_flag()
   write_cr0(cr0);
 }
 
-/* Initializes paging for the system address space 
-This function allocates all the physical pages required for the kernel pages (both code and data pages) 
-and initializes all the page tables in the system with the translation for these kernel pages, which 
-are common for all the processes (see functions init_frames and init_table_pages)
-*/
+/* Initializes paging for the system address space */
 void init_mm()
 {
   init_table_pages();

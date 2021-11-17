@@ -130,3 +130,15 @@ unsigned long get_ticks(void) {
 
         return ticks;
 }
+
+void memset(void *s, unsigned char c, int size)
+{
+  unsigned char *m=(unsigned char *)s;
+  
+  int i;
+  
+  for (i=0; i<size; i++)
+  {
+    m[i]=c;
+  }
+}

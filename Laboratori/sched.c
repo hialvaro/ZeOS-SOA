@@ -2,14 +2,25 @@
  * sched.c - initializes struct for task 0 anda task 1
  */
 
+#include <types.h>
+#include <hardware.h>
+#include <segment.h>
 #include <sched.h>
 #include <mm.h>
 #include <io.h>
+#include <utils.h>
+#include <p_stats.h>
 
-union task_union task[NR_TASKS]
+/**
+ * Container for the Task array and 2 additional pages (the first and the last one)
+ * to protect against out of bound accesses.
+ */
+union task_union protected_tasks[NR_TASKS+2]
   __attribute__((__section__(".data.task")));
 
-#if 1
+union task_union *task = &protected_tasks[1]; /* == union task_union task[NR_TASKS] */
+
+#if 0
 struct task_struct *list_head_to_task_struct(struct list_head *l)
 {
   return list_entry( l, struct task_struct, list);
@@ -17,10 +28,22 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 #endif
 
 extern struct list_head blocked;
-struct list_head freequeue, readyqueue;
-struct task_struct * idle_task;
-int quantum_ticks;
 
+// Free task structs
+struct list_head freequeue;
+// Ready queue
+struct list_head readyqueue;
+
+void init_stats(struct stats *s)
+{
+	s->user_ticks = 0;
+	s->system_ticks = 0;
+	s->blocked_ticks = 0;
+	s->ready_ticks = 0;
+	s->elapsed_total_ticks = get_ticks();
+	s->total_trans = 0;
+	s->remaining_ticks = get_ticks();
+}
 
 /* get_DIR - Returns the Page Directory address for task 't' */
 page_table_entry * get_DIR (struct task_struct *t) 
@@ -56,224 +79,188 @@ void cpu_idle(void)
 	}
 }
 
+#define DEFAULT_QUANTUM 10
+
+int remaining_quantum=0;
+
+int get_quantum(struct task_struct *t)
+{
+  return t->total_quantum;
+}
+
+void set_quantum(struct task_struct *t, int new_quantum)
+{
+  t->total_quantum=new_quantum;
+}
+
+struct task_struct *idle_task=NULL;
+
 void update_sched_data_rr(void)
 {
-	--quantum_ticks;
+  remaining_quantum--;
 }
 
 int needs_sched_rr(void)
-{ // Si se ha superado el quantum devuelve 1.
-
-	// Si el quantum es mayor que cero, se devuelve 0, aun puede seguir.
-	if(quantum_ticks > 0) return 0;
-	// Si el quantum no es mayor que cero y la lista de ready esta vacía
-	// se hace reset del quantum y sigue.
-	if(list_empty(&readyqueue)){
-		quantum_ticks = current()->quantum;
-		return 0;
-	}
-	// en caso contrario, se tiene que cambiar de proceso.
-	return 1;
+{
+  if ((remaining_quantum==0)&&(!list_empty(&readyqueue))) return 1;
+  if (remaining_quantum==0) remaining_quantum=get_quantum(current());
+  return 0;
 }
 
 void update_process_state_rr(struct task_struct *t, struct list_head *dst_queue)
-{ //Elimina el proceso de su cola actual y lo inserta en una nueva cola.
-	struct list_head * list_tmp = &t->list;
-	/* Si el proceso esta dentro de una lista, va a tener un puntero al elemento previo y siguiente
-	Así que solo comprobando esto podemos saber si es necesario eliminarlo de la lista dónde se encuentra*/
-	if(!(list_tmp->prev == NULL && list_tmp->next == NULL)){
-		list_del(list_tmp);
-	}
-
-	/* Si va a alguna lista se le añade. Si es running, se le deja sin colas. */
-	if (dst_queue) list_add_tail(list_tmp, dst_queue);
+{
+  if (t->state!=ST_RUN) list_del(&(t->list));
+  if (dst_queue!=NULL)
+  {
+    list_add_tail(&(t->list), dst_queue);
+    if (dst_queue!=&readyqueue) t->state=ST_BLOCKED;
+    else
+    {
+      update_stats(&(t->p_stats.system_ticks), &(t->p_stats.elapsed_total_ticks));
+      t->state=ST_READY;
+    }
+  }
+  else t->state=ST_RUN;
 }
 
 void sched_next_rr(void)
 {
-	struct task_struct *next;
+  struct list_head *e;
+  struct task_struct *t;
 
-	// Si hay procesos en la lista de ready
-	if(!list_empty(&readyqueue)){
-		// Nos quedamos con el primero de la lista y lo eliminamos de esta.
-		struct list_head *lf = list_first(&readyqueue);
-		list_del(lf);
-		next = list_head_to_task_struct(lf);
-	}
-	else{
-		// Si la lista de ready esta vacía, se debe ejecutar el proceso idle.
-		next = idle_task;
-	}
+  if (!list_empty(&readyqueue)) {
+	e = list_first(&readyqueue);
+    list_del(e);
 
-	// Se pone el estado del proceso a RUN. - Creo que no es necesario
-	// next->state=ST_RUN;
+    t=list_head_to_task_struct(e);
+  }
+  else
+    t=idle_task;
 
-	// Se asigna la variable global de quantum el quantum del proceso siguiente.
-	quantum_ticks = next->quantum;
+  t->state=ST_RUN;
+  remaining_quantum=get_quantum(t);
 
-	// Se hace el task_switch al nuevo proceso.
-	task_switch(next);
+  update_stats(&(current()->p_stats.system_ticks), &(current()->p_stats.elapsed_total_ticks));
+  update_stats(&(t->p_stats.ready_ticks), &(t->p_stats.elapsed_total_ticks));
+  t->p_stats.total_trans++;
+
+  task_switch((union task_union*)t);
 }
 
-void schedule(){
-	update_sched_data_rr();
-	if(needs_sched_rr()) {
-		update_process_state_rr(current(), &readyqueue);
-		sched_next_rr();
-	}
+void schedule()
+{
+  update_sched_data_rr();
+  if (needs_sched_rr())
+  {
+    update_process_state_rr(current(), &readyqueue);
+    sched_next_rr();
+  }
 }
-
-
 
 void init_idle (void)
 {
-	/* Obtenim el primer element de la freequeue
-	   utilitzant list_first(). La freequeue és
-	   un vector de list_head(s).*/
-	struct list_head *t = list_first(&freequeue);
+  struct list_head *l = list_first(&freequeue);
+  list_del(l);
+  struct task_struct *c = list_head_to_task_struct(l);
+  union task_union *uc = (union task_union*)c;
 
-	/* Ara aquest element ja no estarà lliure. Per tant
-	 l'hem d'eliminar de la freequeue:*/
-	list_del(t);
+  c->PID=0;
 
-	/* Ara el convertim de list_head a task_struct: */
-	struct task_struct *pcb = list_head_to_task_struct(t);
+  c->total_quantum=DEFAULT_QUANTUM;
 
-	/*Ara, com que és el procés idle, li hem d'assignar el PID = 0*/
-	pcb->PID = 0;
-	pcb->quantum=QUANTUM;
+  init_stats(&c->p_stats);
 
-	/* Ara utilitzem allocate_DIR per a inicialitzar el camp dir_pages_baseAddr
-	   (on es troba l'adreça base del directori de pàgines del procés) amb un nou 
-	   directori on guardarem l'espai d'adreces del procés. */
-	allocate_DIR(pcb);
+  allocate_DIR(c);
 
-	/* A continuació inicialitzem un context d'execució per a poder restaurar-lo
-	   quan idle s'assigni a la CPU i s'executi cpu_idle() */
-	/* El procés idle no té context hardware ni context software. Només es necessita
-	  	guardar la informació que necessitarà el task_switch per a posar en marxa un
-	  	procés i fer el canvi. Aquesta informació és el ebp i l'adreça de retorn. */
-	/* from Zeos.pdf: the context switch routine will be in
-	charge of putting this process on execution. This means that we need to initialize the context of
-	the idle process as the context switch routine requires to restore the context of any process. This
-	context switch routine restores the execution of any process in the same state that it had before
-	invoking it  */
-	union task_union *tun = (union task_union*) pcb; // Task union corresponent al PCB de idle.
-	tun -> stack[KERNEL_STACK_SIZE - 1] = (unsigned long) cpu_idle; // Store in the stack of the idle process the address of the code that it will execute (@ret)
-	tun -> stack[KERNEL_STACK_SIZE - 2] = (unsigned long) 0; // the initial value that we want to assign to register ebp when undoing the dynamic link (it can be 0)
-	tun -> task.kernel_esp = &(tun->stack[KERNEL_STACK_SIZE - 2]); // keep (in a field of its task_struct) the position of the stack where we have stored the initial value for the ebp register.
-	
-	/* Ara incialitzem la variable global idle_task, per a facilitar l'accés al 
-	task_struct del procés idle.*/
-	idle_task = pcb;
+  uc->stack[KERNEL_STACK_SIZE-1]=(unsigned long)&cpu_idle; /* Return address */
+  uc->stack[KERNEL_STACK_SIZE-2]=0; /* register ebp */
+
+  c->register_esp=(int)&(uc->stack[KERNEL_STACK_SIZE-2]); /* top of the stack */
+
+  idle_task=c;
 }
+
+void setMSR(unsigned long msr_number, unsigned long high, unsigned long low);
 
 void init_task1(void)
 {
-	/* The code of this process is implemented in user.c.
-	This function is called from main() in system.c*/
+  struct list_head *l = list_first(&freequeue);
+  list_del(l);
+  struct task_struct *c = list_head_to_task_struct(l);
+  union task_union *uc = (union task_union*)c;
 
-	/* Obtenim el primer element de la freequeue
-	   utilitzant list_first(). La freequeue és
-	   un vector de list_head(s).*/
-	struct list_head *t = list_first(&freequeue);
+  c->PID=1;
 
-	/* Ara aquest element ja no estarà lliure. Per tant
-	 l'hem d'eliminar de la freequeue:*/
-	list_del(t);
+  c->total_quantum=DEFAULT_QUANTUM;
 
-	/* Ara el convertim de list_head a task_struct: */
-	struct task_struct *pcb = list_head_to_task_struct(t);
+  c->state=ST_RUN;
 
-	/*Ara, com que és el procés init, li hem d'assignar el PID = 1*/
-	pcb->PID = 1;
-	pcb->quantum = QUANTUM;
+  remaining_quantum=c->total_quantum;
 
-	/* Ara utilitzem allocate_DIR per a inicialitzar el camp dir_pages_baseAddr
-	   (on es troba l'adreça base del directori de pàgines del procés) amb un nou 
-	   directori on guardarem l'espai d'adreces del procés. */
-	allocate_DIR(pcb);
+  init_stats(&c->p_stats);
 
-	/* Ara hem de inicialitzar el seu espai d'adreces. Utilitzem set_user_pages, que
-	alocata les pàgines físiques que contindràn l'espai d'adreces d'usuari (codi + data)
-	i afegeix a la taula de pàgines la traducció d'aquestes pàgines assignades.
-	Cal recordar que la regió de kernel ja està configurada i és igual per a tots els processos. */
-	set_user_pages(pcb);
+  allocate_DIR(c);
 
-	/* Ara cal actualitzar la TSS per fer que apunti a la pila de la nova tasca (new_task). */
-	union task_union * tun1 = (union task_union*) pcb; // Obtenim el union task_union assignat al pcb de init.
-	// Hi ha un define de KERNEL_ESP a sched.h que podem utilitzar per això. 
-	tss.esp0 = KERNEL_ESP((union task_union *)pcb); //Fem que esp0 apunti a l'inici del codi d'usuari.
-	// Modifiquem el registre SYSENTER_ESP_MSR, la pila de sistema operativa.
-	writeMSR(0x175, (int) tss.esp0);
+  set_user_pages(c);
 
-	/* Assignem la pàgina del directori del procés com la pàgina de directori actual en el sistema */
-	set_cr3(pcb->dir_pages_baseAddr);
+  tss.esp0=(DWord)&(uc->stack[KERNEL_STACK_SIZE]);
+  setMSR(0x175, 0, (unsigned long)&(uc->stack[KERNEL_STACK_SIZE]));
+
+  set_cr3(c->dir_pages_baseAddr);
 }
 
-void inner_task_switch(union task_union *new_task){
-	/* Primer cal actualitzar el punter de la pila de sistema a la TSS per a que apunti la pila de la 
-	nova tasca. */
-	//Fem que esp0 de la TSS apunti a l'inici del codi d'usuari.
-	tss.esp0 = KERNEL_ESP((union task_union *)new_task); 
-	// Modifiquem el registre SYSENTER_ESP_MSR, la pila de sistema operativa.
-	writeMSR(0x175, (int) tss.esp0);
+void init_freequeue()
+{
+  int i;
 
-	/* A continuació canviem l'espai d'adreces d'usuari. Per a fer això s'ha d'actualitzar el directori
-	de pàgines actual. Per a fer-ho, haurem de modificar el registre cr3 per a que apunti al directori de
-	la nova tasca. Això també provoca un flush del TLB. */
-	// get_DIR: Returns the Page Directory address for a task
-	set_cr3(get_DIR(&(new_task->task)));
+  INIT_LIST_HEAD(&freequeue);
 
-	/* Cambio a castellano ya que así lo podrá entender más gente en un futuro cuando haga esto público */
-	/* Con asm se puede hacer uso de assembler en el mismo código de una función de C 
-	   La primera variable se referencia como %0 y la segunda como %1 (si hay 2)*/
-	/* Ahora hay que guardar el valor actual de EBP al  kernel_esp del PCB. EBP contiene la 
-	dirección de la pila de sistema actual, donde empieza inner_task_switch */
-	__asm__ __volatile__ ( 
-		"mov %%ebp,%0" //%0 indica la variable
-		: "=g" (current()->kernel_esp) // =g indica que la variable entre paréntesis se usa como destino.
-		:); //No hay variable origen
-
-	/* El siguiente paso es cambiar la pila de sistema actual haciendo que el registro EBP apunte al 
-	valor del kernel_esp de new (guardado en el PCB de la nueva tarea) */
-	// Esta funcion equivale a un mov del valor de kernel_esp del pcb a esp.
-	__asm__ __volatile__ (
-		"mov %0, %%esp"
-		: // No hay variable destino
-		: "g" (new_task->task.kernel_esp)); // g indica que la variable entre paréntesis es de origen
-
-	/* Ahora se debe restaurar el registro EBP de la pila */
-	__asm__ __volatile__ (
-		"pop %%ebp"
-		: //No hay destino
-		:); //No hay origen
-
-	/* Finalmente, retornamos a la rutina que ha llamado a inner_task_switch haciendo un RET */
-	__asm__ __volatile__ (
-		"ret"
-		:
-		:);
+  /* Insert all task structs in the freequeue */
+  for (i=0; i<NR_TASKS; i++)
+  {
+    task[i].task.PID=-1;
+    list_add_tail(&(task[i].task.list), &freequeue);
+  }
 }
 
 void init_sched()
 {
-	INIT_LIST_HEAD(&freequeue);
-	INIT_LIST_HEAD(&readyqueue);
-	int i;
-	for(i = 0; i<NR_TASKS;i++){
-		list_add( &(task[i].task.list), &freequeue);
-	}
+  init_freequeue();
+  INIT_LIST_HEAD(&readyqueue);
 }
 
 struct task_struct* current()
 {
   int ret_value;
   
-  __asm__ __volatile__(
-  	"movl %%esp, %0"
-	: "=g" (ret_value)
-  );
-  return (struct task_struct*)(ret_value&0xfffff000);
+  return (struct task_struct*)( ((unsigned int)&ret_value) & 0xfffff000);
 }
 
+struct task_struct* list_head_to_task_struct(struct list_head *l)
+{
+  return (struct task_struct*)((int)l&0xfffff000);
+}
+
+/* Do the magic of a task switch */
+void inner_task_switch(union task_union *new)
+{
+  page_table_entry *new_DIR = get_DIR(&new->task);
+
+  /* Update TSS and MSR to make it point to the new stack */
+  tss.esp0=(int)&(new->stack[KERNEL_STACK_SIZE]);
+  setMSR(0x175, 0, (unsigned long)&(new->stack[KERNEL_STACK_SIZE]));
+
+  /* TLB flush. New address space */
+  set_cr3(new_DIR);
+
+  switch_stack(&current()->register_esp, new->task.register_esp);
+}
+
+
+/* Force a task switch assuming that the scheduler does not work with priorities */
+void force_task_switch()
+{
+  update_process_state_rr(current(), &readyqueue);
+
+  sched_next_rr();
+}

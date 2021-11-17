@@ -236,3 +236,7 @@ int sys_get_stats(int pid, struct stats *st)
   }
   return -ESRCH; /*ESRCH */
 }
+
+int sys_sem_init(int sem_id, unsigned int count) {
+	return 0;
+}

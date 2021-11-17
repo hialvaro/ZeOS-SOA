@@ -237,6 +237,34 @@ int sys_get_stats(int pid, struct stats *st)
   return -ESRCH; /*ESRCH */
 }
 
+/* SEMAPHORES */
+
+int get_sem_pos_from_id(int sem_id) {
+  // Gets a semaphore id and returns its position.
+	for (int i = 0; i < NR_SEMAPHORES; i++){
+		if (semaphores[i].sem_id == sem_id) return i;
+  }
+	return -1;
+}
+
+int get_free_sem() { //Returns the position of a free semaphore.
+	for (int i = 0; i < NR_SEMAPHORES; i++){
+		if (semaphores[i].sem_id < 0) return i;
+  }
+	return -1;
+}
+
 int sys_sem_init(int sem_id, unsigned int count) {
+  if (sem_id < 0) return -1; // El id del semaforo no es valido
+	if (get_sem_pos_from_id(sem_id) != -1) return -1; // El semaforo ya esta en uso
+
+	int pos = get_free_sem();
+	if (pos == -1) return -1; // No hay semaforos libres
+
+	semaphores[pos].sem_id = sem_id;
+	semaphores[pos].count = count;
+	semaphores[pos].pid_owner = current()->PID;
+
+	INIT_LIST_HEAD(&semaphores[pos].procs);
 	return 0;
 }

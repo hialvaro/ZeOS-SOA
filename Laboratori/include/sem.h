@@ -8,6 +8,6 @@ typedef struct {
 		unsigned int count;
 		int pid_owner;
 		struct list_head semqueue;
-}Sem;
+}Semaphore;
 
 #endif /* _SEMAPHORE */

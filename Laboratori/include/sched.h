@@ -9,10 +9,12 @@
 #include <types.h>
 #include <mm_address.h>
 #include <stats.h>
+#include <sem.h>
 
 
 #define NR_TASKS      10
 #define KERNEL_STACK_SIZE	1024
+#define NR_SEMAPHORES 30
 
 enum state_t { ST_RUN, ST_READY, ST_BLOCKED };
 
@@ -42,8 +44,12 @@ extern struct task_struct *idle_task;
 
 extern struct list_head freequeue;
 extern struct list_head readyqueue;
+extern Semaphore semaphores[NR_SEMAPHORES];
 
 /* Inicialitza les dades del proces inicial */
+
+void init_semaphores(void);
+
 void init_task1(void);
 
 void init_idle(void);

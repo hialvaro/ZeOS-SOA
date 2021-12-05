@@ -1,5 +1,5 @@
 /*
- * system.c - 
+ * system.c -
  */
 
 #include <segment.h>
@@ -11,6 +11,7 @@
 #include <mm.h>
 #include <io.h>
 #include <utils.h>
+#include <sem.h>
 //#include <zeos_mm.h> /* TO BE DELETED WHEN ADDED THE PROCESS MANAGEMENT CODE TO BECOME MULTIPROCESS */
 
 
@@ -36,7 +37,7 @@ unsigned int *p_rdtr = (unsigned int *) KERNEL_START+2;
  */
 
 /*
- * This function MUST be 'inline' because it modifies the %esp 
+ * This function MUST be 'inline' because it modifies the %esp
  */
 inline void set_seg_regs(Word data_sel, Word stack_sel, DWord esp)
 {
@@ -89,6 +90,7 @@ int __attribute__((__section__(".text.main")))
 
   /* Initialize Scheduling */
   init_sched();
+  init_semaphores();
 
   /* Initialize idle task  data */
   init_idle();
@@ -111,5 +113,3 @@ int __attribute__((__section__(".text.main")))
   /* The execution never arrives to this point */
   return 0;
 }
-
-

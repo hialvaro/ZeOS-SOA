@@ -24,8 +24,8 @@ void * get_ebp();
 
 int check_fd(int fd, int permissions)
 {
-  if (fd!=1) return -EBADF; 
-  if (permissions!=ESCRIPTURA) return -EACCES; 
+  if (fd!=1) return -EBADF;
+  if (permissions!=ESCRIPTURA) return -EACCES;
   return 0;
 }
 
@@ -41,7 +41,7 @@ void system_to_user(void)
 
 int sys_ni_syscall()
 {
-	return -ENOSYS; 
+	return -ENOSYS;
 }
 
 int sys_getpid()
@@ -60,22 +60,22 @@ int sys_fork(void)
 {
   struct list_head *lhcurrent = NULL;
   union task_union *uchild;
-  
+
   /* Any free task_struct? */
   if (list_empty(&freequeue)) return -ENOMEM;
 
   lhcurrent=list_first(&freequeue);
-  
+
   list_del(lhcurrent);
-  
+
   uchild=(union task_union*)list_head_to_task_struct(lhcurrent);
-  
+
   /* Copy the parent's task struct to child's */
   copy_data(current(), uchild, sizeof(union task_union));
-  
+
   /* new pages dir */
   allocate_DIR((struct task_struct*)uchild);
-  
+
   /* Allocate pages for DATA+STACK */
   int new_ph_pag, pag, i;
   page_table_entry *process_PT = get_PT(&uchild->task);
@@ -96,9 +96,9 @@ int sys_fork(void)
       }
       /* Deallocate task_struct */
       list_add_tail(lhcurrent, &freequeue);
-      
+
       /* Return error */
-      return -EAGAIN; 
+      return -EAGAIN;
     }
   }
 
@@ -146,7 +146,7 @@ int sys_fork(void)
   /* Queue child process into readyqueue */
   uchild->task.state=ST_READY;
   list_add_tail(&(uchild->task.list), &readyqueue);
-  
+
   return uchild->task.PID;
 }
 
@@ -163,7 +163,7 @@ int ret;
 		return -EINVAL;
 	if (!access_ok(VERIFY_READ, buffer, nbytes))
 		return -EFAULT;
-	
+
 	bytes_left = nbytes;
 	while (bytes_left > TAM_BUFFER) {
 		copy_from_user(buffer, localbuffer, TAM_BUFFER);
@@ -188,7 +188,7 @@ int sys_gettime()
 }
 
 void sys_exit()
-{  
+{
   int i;
 
   page_table_entry *process_PT = get_PT(current());
@@ -199,12 +199,12 @@ void sys_exit()
     free_frame(get_frame(process_PT, PAG_LOG_INIT_DATA+i));
     del_ss_pag(process_PT, PAG_LOG_INIT_DATA+i);
   }
-  
+
   /* Free task_struct */
   list_add_tail(&(current()->list), &freequeue);
-  
+
   current()->PID=-1;
-  
+
   /* Restarts execution of the next process */
   sched_next_rr();
 }
@@ -221,9 +221,9 @@ extern int remaining_quantum;
 int sys_get_stats(int pid, struct stats *st)
 {
   int i;
-  
-  if (!access_ok(VERIFY_WRITE, st, sizeof(struct stats))) return -EFAULT; 
-  
+
+  if (!access_ok(VERIFY_WRITE, st, sizeof(struct stats))) return -EFAULT;
+
   if (pid<0) return -EINVAL;
   for (i=0; i<NR_TASKS; i++)
   {
@@ -265,6 +265,61 @@ int sys_sem_init(int sem_id, unsigned int count) {
 	semaphores[pos].count = count;
 	semaphores[pos].pid_owner = current()->PID;
 
-	INIT_LIST_HEAD(&semaphores[pos].procs);
+	INIT_LIST_HEAD(&semaphores[pos].semqueue);
 	return 0;
+}
+
+int sys_sem_wait(int sem_id) {
+
+  int pos = get_sem_pos_from_id(sem_id);
+  if (sem_id < 0 || (pos == -1)) return -1;
+  if (semaphores[pos].pid_owner == -1) return -1;
+  if (semaphores[pos].count <= 0) {
+    update_process_state_rr(current(), &semaphores[pos].semqueue);
+    schedule();
+  }
+  else --semaphores[pos].count;
+
+  //si se ha destruido el semaforo
+  if (semaphores[pos].pid_owner == -1) return -1;
+
+  return 0;
+}
+
+int sys_sem_signal(int sem_id) {
+
+  int pos = get_sem_pos_from_id(sem_id);
+  if (sem_id < 0 || (pos == -1)) return -1;
+  if (semaphores[pos].pid_owner == -1) return -1;
+
+  if (list_empty(&semaphores[pos].semqueue)) ++semaphores[pos].count;
+  else {
+
+    struct list_head *new = list_first(&semaphores[pos].semqueue);
+    list_del(new);
+    struct task_struct * task = list_head_to_task_struct(new);
+    update_process_state_rr(task,&readyqueue);
+  }
+
+  return 0;
+}
+
+int sys_sem_destroy(int sem_id) {
+
+  int pos = get_sem_pos_from_id(sem_id);
+  if (sem_id < 0 || (pos == -1)) return -1;
+  if (semaphores[pos].pid_owner == -1) return -1;
+
+  if (current()->PID == semaphores[pos].pid_owner) {
+    semaphores[pos].pid_owner = -1;
+    semaphores[pos].count = -1;
+    while(!list_empty(&semaphores[pos].semqueue)) {
+      struct list_head * new = list_first(&semaphores[pos].semqueue);
+      list_del(new);
+      struct task_struct * task = list_head_to_task_struct(new);
+      update_process_state_rr(task, &readyqueue);
+    }
+  }
+  else return -1;
+  return 0;
 }

@@ -10,6 +10,7 @@
 #include <io.h>
 #include <utils.h>
 #include <p_stats.h>
+#include <sem.h>
 
 /**
  * Container for the Task array and 2 additional pages (the first and the last one)
@@ -34,6 +35,8 @@ struct list_head freequeue;
 // Ready queue
 struct list_head readyqueue;
 
+Semaphore semaphores[NR_SEMAPHORES];
+
 void init_stats(struct stats *s)
 {
 	s->user_ticks = 0;
@@ -46,25 +49,25 @@ void init_stats(struct stats *s)
 }
 
 /* get_DIR - Returns the Page Directory address for task 't' */
-page_table_entry * get_DIR (struct task_struct *t) 
+page_table_entry * get_DIR (struct task_struct *t)
 {
 	return t->dir_pages_baseAddr;
 }
 
 /* get_PT - Returns the Page Table address for task 't' */
-page_table_entry * get_PT (struct task_struct *t) 
+page_table_entry * get_PT (struct task_struct *t)
 {
 	return (page_table_entry *)(((unsigned int)(t->dir_pages_baseAddr->bits.pbase_addr))<<12);
 }
 
 
-int allocate_DIR(struct task_struct *t) 
+int allocate_DIR(struct task_struct *t)
 {
 	int pos;
 
 	pos = ((int)t-(int)task)/sizeof(union task_union);
 
-	t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos]; 
+	t->dir_pages_baseAddr = (page_table_entry*) &dir_pages[pos];
 
 	return 1;
 }
@@ -232,7 +235,7 @@ void init_sched()
 struct task_struct* current()
 {
   int ret_value;
-  
+
   return (struct task_struct*)( ((unsigned int)&ret_value) & 0xfffff000);
 }
 
@@ -263,4 +266,13 @@ void force_task_switch()
   update_process_state_rr(current(), &readyqueue);
 
   sched_next_rr();
+}
+
+void init_semaphores(){
+
+  for (int i = 0; i < NR_SEMAPHORES; ++i) {
+
+    semaphores[i].sem_id = -1;
+    semaphores[i].pid_owner = -1;
+  }
 }

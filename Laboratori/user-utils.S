@@ -26,7 +26,7 @@ ENTRY(write)
 	call syscall_sysenter
 	popl %ebx
 	test %eax, %eax
-	js nok	// if (eax < 0) -> 
+	js nok	// if (eax < 0) ->
 	popl %ebp
 	ret
 
@@ -130,3 +130,64 @@ end_sem:
 	mov %ebp, %esp
 	pop %ebp
 	ret
+
+ENTRY(sem_wait)
+	push %ebp
+	mov %esp, %ebp
+	push %ecx
+	push %ebx
+	//mov 12(%ebp), %ecx   // count
+	mov 8(%ebp), %ebx    // sem_id
+	lea ret_from_sem, %eax
+	push %eax
+	push %ebp
+	movl %esp, %ebp
+	mov $22, %eax // Syscall 21 is sem_init
+	sysenter
+
+
+ENTRY(sem_signal)
+	push %ebp
+	mov %esp, %ebp
+	push %ecx
+	push %ebx
+	//mov 12(%ebp), %ecx   // count
+	mov 8(%ebp), %ebx    // sem_id
+	lea ret_from_sem, %eax
+	push %eax
+	push %ebp
+	movl %esp, %ebp
+	mov $23, %eax // Syscall 21 is sem_init
+	sysenter
+
+
+ENTRY(sem_destroy)
+	push %ebp
+	mov %esp, %ebp
+	push %ecx
+	push %ebx
+	//mov 12(%ebp), %ecx   // count
+	mov 8(%ebp), %ebx    // sem_id
+	lea ret_from_sem, %eax
+	push %eax
+	push %ebp
+	movl %esp, %ebp
+	mov $24, %eax // Syscall 21 is sem_init
+	sysenter
+
+
+	/** Common Semaphores code
+ret_from_sem:
+  pop %ebp
+	add $4, %esp
+	cmp $0, %eax
+	je end_sem // Si no hay error, salta a fin
+	lea errno, %ebx
+	mov %eax, (%ebx)
+	mov $-1, %eax
+end_sem:
+	pop %ebx
+	pop %ecx
+	mov %ebp, %esp
+	pop %ebp
+	ret*/

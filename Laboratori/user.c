@@ -37,7 +37,7 @@ int __attribute__ ((__section__(".text.main")))
 
   mesg = "\n\nTrying to REcreate a SEMAPHORE with ID=4";
   write(1, mesg, strlen(mesg));
-  if (sem_init(4,2) == 0)   mesg = "\nValid ID 4";
+  if (sem_init(4,3) == 0)   mesg = "\nValid ID 4";
   else mesg = "\nInvalid ID 4: REPEATED";
   write(1, mesg, strlen(mesg));
 
@@ -49,20 +49,14 @@ int __attribute__ ((__section__(".text.main")))
 
   mesg = "\n\nTrying to REcreate the SEMAPHORE with ID=4 after destroy";
   write(1, mesg, strlen(mesg));
-  if (sem_init(4,2) == 0)   mesg = "\nValid ID 4";
+  if (sem_init(4,1) == 0)   mesg = "\nValid ID 4";
   else mesg = "\nInvalid ID 4";
   write(1, mesg, strlen(mesg));
 
-  mesg = "\n\nCreating a SEMAPHORE with ID=5 to test";
-  write(1, mesg, strlen(mesg));
-  if (sem_init(5,1) == 0)   mesg = "\nValid ID 5";
-  else mesg = "\nInvalid ID 5";
-  write(1, mesg, strlen(mesg));
-
-  mesg = "\n\nsem_wait and sem_signal test";
+  mesg = "\n\nsem_wait and sem_signal test with sem_id=4";
   write(1, mesg, strlen(mesg));
   pid = fork();
-  if(sem_wait(5) == 0) write(1, "\nWait success", strlen("\nWait success"));
+  if(sem_wait(4) == 0) write(1, "\nWait success", strlen("\nWait success"));
   if(pid > 0){
     write(1, "\nfather says", strlen("\nfather says"));
     mesg = "\nhi";
@@ -72,6 +66,6 @@ int __attribute__ ((__section__(".text.main")))
     mesg = "\nbye";
   }  
   write(1, mesg, strlen(mesg));
-  sem_signal(5);
+  sem_signal(4);
   while(1){}
 }

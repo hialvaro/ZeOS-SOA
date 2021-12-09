@@ -312,7 +312,7 @@ int sys_sem_destroy(int sem_id) {
   if (semaphores[pos].pid_owner == -1) return -1;
 
   if (current()->PID == semaphores[pos].pid_owner) {
-    semaphores[pos].pid_owner = -1;
+    semaphores[pos].sem_id = -1;
     semaphores[pos].count = -1;
     while(!list_empty(&semaphores[pos].semqueue)) {
       struct list_head * new = list_first(&semaphores[pos].semqueue);

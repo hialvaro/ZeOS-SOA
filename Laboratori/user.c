@@ -15,20 +15,34 @@ int __attribute__ ((__section__(".text.main")))
   char * mesg = "\nTest de los los semaforos:";
   write(1, mesg, strlen(mesg));
 
+  // Invalid semaphore: negative id.
   if (sem_init(-3,2) == 0) write(1, "\nT", 2);
-  else write(1, "\nF", 2);
+  else write(1, "\nInvalid", strlen("\nInvalid"));
 
   if (sem_init(3,2) == 0) write(1, "\nT", 2);
-  else write(1, "\nF", 2);
+  else write(1, "\nInvalid", strlen("\nInvalid"));
 
+  // Invalid semaphore: repeated id.
   if (sem_init(3,2) == 0) write(1, "\nT", 2);
-  else write(1, "\nF", 2);
+  else write(1, "\nInvalid", strlen("\nInvalid"));
 
   if (sem_init(1,2) == 0) write(1, "\nT", 2);
-  else write(1, "\nF", 2);
+  else write(1, "\nInvalid", strlen("\nInvalid"));
 
+  if (sem_init(0,0) == 0) write(1, "\nSemaphore created", strlen("\nSemaphore created"));
+  else write(1, "\nInvalid", strlen("\nInvalid"));
 
+  char * msg;
+  pid = fork();
 
-  write(1, "\nEntro el while", 15);
-  while(1) { }
+  sem_wait(0);
+  if(pid > 0){
+    write(1, "\nfather says", strlen("\nfather says"));
+    msg = "\nhi";
+  }
+  else{
+    write(1, "\nson says", strlen("\nson says"));
+    msg = "\nbye";
+  }  
+  write(1, msg, strlen(msg));
 }

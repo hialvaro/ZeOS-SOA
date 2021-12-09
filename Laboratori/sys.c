@@ -275,8 +275,9 @@ int sys_sem_wait(int sem_id) {
   if (sem_id < 0 || (pos == -1)) return -1;
   if (semaphores[pos].pid_owner == -1) return -1;
   if (semaphores[pos].count <= 0) {
-    update_process_state_rr(current(), &semaphores[pos].semqueue);
-    schedule();
+    struct task_struct *t;
+    list_add_tail(&(current()->list), &semaphores[pos].semqueue);
+    sched_next_rr();
   }
   else --semaphores[pos].count;
 

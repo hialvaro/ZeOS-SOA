@@ -29,20 +29,21 @@ int __attribute__ ((__section__(".text.main")))
   if (sem_init(1,2) == 0) write(1, "\nT", 2);
   else write(1, "\nInvalid", strlen("\nInvalid"));
 
-  if (sem_init(0,0) == 0) write(1, "\nSemaphore created", strlen("\nSemaphore created"));
+  if (sem_init(5,1) == 0) write(1, "\nSemaphore created", strlen("\nSemaphore created"));
   else write(1, "\nInvalid", strlen("\nInvalid"));
 
-  char * msg;
   pid = fork();
-
-  sem_wait(0);
+  if(sem_wait(5) == 0) write(1, "\nWait OK", strlen("\nWait OK"));
   if(pid > 0){
     write(1, "\nfather says", strlen("\nfather says"));
-    msg = "\nhi";
+    mesg = "\nhi";
   }
   else{
     write(1, "\nson says", strlen("\nson says"));
-    msg = "\nbye";
+    mesg = "\nbye";
   }  
-  write(1, msg, strlen(msg));
+  write(1, mesg, strlen(mesg));
+  sem_signal(5);
+
+  while(1){}
 }

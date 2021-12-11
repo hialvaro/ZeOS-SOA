@@ -10,13 +10,27 @@
 #include <mm_address.h>
 #include <stats.h>
 #include <sem.h>
+#include <tfa.h>
 
 
 #define NR_TASKS      10
 #define KERNEL_STACK_SIZE	1024
 #define NR_SEMAPHORES 30
+#define NUM_CHANELS 12      /*Comprobar cual es el valor indicado aqui*/
 
 enum state_t { ST_RUN, ST_READY, ST_BLOCKED };
+enum mode_t {READ_ONLY, WRITE_ONLY};
+
+//Entrada d'un element de la taula de canals
+struct entry {
+  int fd;
+  struct tfa * disp;
+};
+
+//Taula de canals d'un proces.
+struct tableOfChannels {
+  struct entry entrys [NUM_CHANELS];
+};
 
 struct task_struct {
   int PID;			/* Process ID. This MUST be the first field of the struct. */
@@ -26,6 +40,7 @@ struct task_struct {
   enum state_t state;		/* State of the process */
   int total_quantum;		/* Total quantum of the process */
   struct stats p_stats;		/* Process stats */
+  struct tableOfChannels Channels;
 };
 
 union task_union {

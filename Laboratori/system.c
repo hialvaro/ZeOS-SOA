@@ -12,6 +12,7 @@
 #include <io.h>
 #include <utils.h>
 #include <sem.h>
+#include <tfa.h>
 //#include <zeos_mm.h> /* TO BE DELETED WHEN ADDED THE PROCESS MANAGEMENT CODE TO BECOME MULTIPROCESS */
 
 
@@ -91,6 +92,7 @@ int __attribute__((__section__(".text.main")))
   /* Initialize Scheduling */
   init_sched();
   init_semaphores();
+  init_tfas_table();
 
   /* Initialize idle task  data */
   init_idle();

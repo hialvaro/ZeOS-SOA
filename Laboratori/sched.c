@@ -11,6 +11,7 @@
 #include <utils.h>
 #include <p_stats.h>
 #include <sem.h>
+#include <tfa.h>
 
 /**
  * Container for the Task array and 2 additional pages (the first and the last one)

@@ -17,6 +17,10 @@
 
 #include <errno.h>
 
+#include <sem.h>
+
+#include <tfa.h>
+
 #define LECTURA 0
 #define ESCRIPTURA 1
 
@@ -29,6 +33,13 @@ int check_fd(int fd, int permissions)
   return 0;
 }
 
+int myCheck_fd(int fd, enum mode_t mode) {
+
+  struct entry *e = &current()->Channels.entrys[fd];
+  if (! e->fd) return -EBADF;
+  if (! (e->mode == mode)) return -EACCES;
+  return 0;
+}
 void user_to_system(void)
 {
   update_stats(&(current()->p_stats.user_ticks), &(current()->p_stats.elapsed_total_ticks));
@@ -254,6 +265,7 @@ int get_free_sem() { //Returns the position of a free semaphore.
 	return -1;
 }
 
+
 int sys_sem_init(int sem_id, unsigned int count) {
   if (sem_id < 0) return -1; // El id del semaforo no es valido
 	if (get_sem_pos_from_id(sem_id) != -1) return -1; // El semaforo ya esta en uso
@@ -321,5 +333,88 @@ int sys_sem_destroy(int sem_id) {
     }
   }
   else return -1;
+  return 0;
+}
+
+
+int sys_pipe(int * pd) {
+  printk("\nEntro en sys_pipe.\n");
+  //Primero de todo comprobamos si se puede crear una nueva pipe, y donde colocarlos en las tablas.
+  short primer= 0, segon = 0;
+  int tfa = -1;
+  int i = 2;
+  while ((!primer && !segon) || i < NUM_CHANELS) {
+    if (current()->Channels.entrys[i].fd == -1 && !segon && !primer) primer = i;
+    else if( current()->Channels.entrys[i].fd == -1 && primer) segon = i;
+    ++i;
+  }
+
+  if (!segon) return -1;  //CAMBIAR no hay más canales disponibles del proceso.}
+  for (i= 0; i < MAX_TFAS && tfa == -1; ++i) {
+    if(tfas_table.users[i] == 0) tfa = i;
+  }
+
+  if (tfa == -1) return -1; // CAMBIAR No se puede crear mas pipes
+  int frame = alloc_frame();
+
+  if (frame == -1) return -1; //CAMBIAR No hay memoria suficiente.
+  int freeSem = get_free_sem();
+
+  if (freeSem == -1) return -1; //CAMBIAR no hay semaforos disponilbes.
+
+  page_table_entry * pt = get_PT(current());
+  int newLogicalPage = PAG_LOG_INIT_DATA+NUM_PAG_DATA+tfa;
+  set_ss_pag(pt, newLogicalPage, frame);
+
+  current()->Channels.entrys[primer].fd = primer;
+  current()->Channels.entrys[segon].fd = segon;
+  current()->Channels.entrys[primer].mode = READ_ONLY;
+  current()->Channels.entrys[primer].mode = WRITE_ONLY;
+  current()->Channels.entrys[primer].file = &(tfas_table.tfas[tfa]);
+  current()->Channels.entrys[segon].file = &(tfas_table.tfas[tfa]);
+
+
+  char * initPosPipe = (char*)(  ((unsigned long)(newLogicalPage)) << 12  );
+
+  tfas_table.users[tfa] = 1;
+  tfas_table.tfas[tfa].nextWritten = initPosPipe;
+  tfas_table.tfas[tfa].nextRead = initPosPipe;
+  tfas_table.tfas[tfa].availablebytes = 4096;
+  tfas_table.tfas[tfa].nreaders = 1;
+  tfas_table.tfas[tfa].nwriters = 1;
+  tfas_table.tfas[tfa].semaphore =  sys_sem_init(123, 1);
+  tfas_table.tfas[tfa].frame = frame;
+  tfas_table.tfas[tfa].initialPointer = initPosPipe;
+
+  pd[0] = primer;
+  pd[1] = segon;
+  printk("\nLo hace todo sin petar ole los caracole.\n");
+
+  return 0;
+}
+
+int sys_read(int fd, char * buff, int count) {
+
+  int ret;
+  ret = check_fd(fd, READ_ONLY);
+  if (ret != 0) return ret;
+  if (*buff == NULL) return -EFAULT; //BUSCAR MAS TARDE QUE PONER AQUÍ
+  if (count <= 0 || count >= -EINVAL);
+
+  struct tfa  * file = current()->Channels.entrys[fd].file;
+  int rest = count;
+  char a[count];
+  int i = 0;
+  while (rest > 0) {
+    for(; (i < count) && (file->nextRead != file->nextWritten); ++i) {
+      a[i] = *(file->nextRead);
+      ++file->nextRead;
+      if (file->nextRead == file->initialPointer+4096) *(file->nextRead) = *(file->initialPointer);
+    }
+    rest = count - i;
+    if (file->nextRead == file->nextWritten); //AQUI SE TIENE QUE BLOQUEAR;
+  }
+  copy_to_user(*a, *buff, count);
+
   return 0;
 }

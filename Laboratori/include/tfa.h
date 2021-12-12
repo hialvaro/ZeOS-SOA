@@ -10,10 +10,12 @@ struct tfa {
   //TTY info
   char * nextRead;
   char * nextWritten;
-  int availableWritters;
+  int availablebytes;
   int nreaders;
   int nwriters;
   int semaphore;
+  int frame;
+  char * initialPointer;
 };
 
 struct tfas_table {

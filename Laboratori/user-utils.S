@@ -14,6 +14,7 @@ ENTRY(SYSENTER_RETURN)
 	pop %ecx
 	ret
 
+
 /* int write(int fd, char *buffer, int size) */
 ENTRY(write)
 	pushl %ebp
@@ -175,6 +176,36 @@ ENTRY(sem_destroy)
 	mov $24, %eax // Syscall 21 is sem_init
 	sysenter
 
+	/*int pipe(int * fd)*/
+ENTRY(pipe)
+	push %ebp
+	mov %esp, %ebp
+	push %ecx
+	push %ebx
+	//mov 12(%ebp), %ecx   // count
+	mov 8(%ebp), %ebx    // fd
+	lea ret_from_sem, %eax
+	push %eax
+	push %ebp
+	movl %esp, %ebp
+	mov $15, %eax // Syscall 21 is sem_init
+	sysenter
+
+	/*int read(int fd, char * user_buff, int count)*/
+ENTRY(read)
+	push %ebp
+	mov %esp, %ebp
+	push %ecx
+	push %ebx
+	movl 0x8(%ebp), %ebx;	//fd
+	movl 0xC(%ebp), %ecx;	//buffer
+	movl 0x10(%ebp), %edx;	//size
+	lea ret_from_sem, %eax
+	push %eax
+	push %ebp
+	movl %esp, %ebp
+	mov $17, %eax // Syscall 21 is sem_init
+	sysenter
 
 	/** Common Semaphores code
 ret_from_sem:

@@ -199,6 +199,10 @@ void init_task1(void)
 
   c->state=ST_RUN;
 
+  for(int i = 0; i < NUM_CHANELS; ++i) {
+    c->Channels.entrys[i].fd = -1;
+  }
+
   remaining_quantum=c->total_quantum;
 
   init_stats(&c->p_stats);

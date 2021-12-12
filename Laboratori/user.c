@@ -10,7 +10,7 @@ int __attribute__ ((__section__(".text.main")))
     /* Next line, tries to move value 0 to CR3 register. This register is a privileged one, and so it will raise an exception */
      /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-
+  /*
   //Test de semaforos inicializar
   char * mesg = "\nTest de los los semaforos:";
   write(1, mesg, strlen(mesg));
@@ -64,8 +64,12 @@ int __attribute__ ((__section__(".text.main")))
   else{
     write(1, "\nson says", strlen("\nson says"));
     mesg = "\nbye";
-  }  
+  }
   write(1, mesg, strlen(mesg));
   sem_signal(4);
+  */
+  int pd[2], p;
+  p = pipe(pd);
+  if (p==0) write(1,"funciona bien",strlen("funciona bien"));
   while(1){}
 }

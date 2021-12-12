@@ -24,7 +24,8 @@ enum mode_t {READ_ONLY, WRITE_ONLY};
 //Entrada d'un element de la taula de canals
 struct entry {
   int fd;
-  struct tfa * disp;
+  enum mode_t mode;
+  struct tfa * file;
 };
 
 //Taula de canals d'un proces.

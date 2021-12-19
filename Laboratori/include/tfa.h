@@ -27,7 +27,4 @@ struct tfas_table {
 struct tfas_table tfas_table;
 
 
-//Funciones
-void init_tfas_table();
-
 #endif /* TABLA DE FICHEROS ABIERTOS */

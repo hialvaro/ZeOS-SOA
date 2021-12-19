@@ -68,6 +68,7 @@ int __attribute__ ((__section__(".text.main")))
   write(1, mesg, strlen(mesg));
   sem_signal(4);
   */
+  sem_init(123, 1);
   int pd[2], p;
   p = pipe(pd);
   if (p==0) write(1,"funciona bien",strlen("funciona bien"));

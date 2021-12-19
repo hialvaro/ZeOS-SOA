@@ -267,73 +267,39 @@ int get_free_sem() { //Returns the position of a free semaphore.
 
 
 int sys_sem_init(int sem_id, unsigned int count) {
-  if (sem_id < 0) return -1; // El id del semaforo no es valido
-	if (get_sem_pos_from_id(sem_id) != -1) return -1; // El semaforo ya esta en uso
 
+  if (sem_id < 0) return -1;                          // El id del semaforo no es valido
+	if (get_sem_pos_from_id(sem_id) != -1) return -1;   // El identrificardot ya esta en uso
 	int pos = get_free_sem();
-	if (pos == -1) return -1; // No hay semaforos libres
+	if (pos == -1) return -1;                           // No hay espació para crear un semaforo.
 
-	semaphores[pos].sem_id = sem_id;
-	semaphores[pos].count = count;
-	semaphores[pos].pid_owner = current()->PID;
-
-	INIT_LIST_HEAD(&semaphores[pos].semqueue);
-	return 0;
+  return sem_init(sem_id, count, semaphores[pos]);
 }
 
 int sys_sem_wait(int sem_id) {
 
   int pos = get_sem_pos_from_id(sem_id);
-  if (sem_id < 0 || (pos == -1)) return -1;
-  if (semaphores[pos].pid_owner == -1) return -1;
-  if (semaphores[pos].count <= 0) {
-    list_add_tail(&(current()->list), &semaphores[pos].semqueue);
-    sched_next_rr();
-  }
-  else --semaphores[pos].count;
-
-  //si se ha destruido el semaforo
+  if (sem_id < 0 || (pos == -1)) return -1;          // El semaforo no existe.
   if (semaphores[pos].pid_owner == -1) return -1;
 
-  return 0;
+  return sem_wait(semaphores[pos]);
 }
 
 int sys_sem_signal(int sem_id) {
 
   int pos = get_sem_pos_from_id(sem_id);
-  if (sem_id < 0 || (pos == -1)) return -1;
+  if (sem_id < 0 || (pos == -1)) return -1;                            // No existe el semaforo.
   if (semaphores[pos].pid_owner == -1) return -1;
 
-  if (list_empty(&semaphores[pos].semqueue)) ++semaphores[pos].count;
-  else {
-
-    struct list_head *new = list_first(&semaphores[pos].semqueue);
-    list_del(new);
-    struct task_struct * task = list_head_to_task_struct(new);
-    update_process_state_rr(task,&readyqueue);
-  }
-
-  return 0;
+  return sem_singal();
 }
 
 int sys_sem_destroy(int sem_id) {
 
   int pos = get_sem_pos_from_id(sem_id);
-  if (sem_id < 0 || (pos == -1)) return -1;
-  if (semaphores[pos].pid_owner == -1) return -1;
+  if (sem_id < 0 || (pos == -1)) return -1;               // No existe el semaforo.
 
-  if (current()->PID == semaphores[pos].pid_owner) {
-    semaphores[pos].sem_id = -1;
-    semaphores[pos].count = -1;
-    while(!list_empty(&semaphores[pos].semqueue)) {
-      struct list_head * new = list_first(&semaphores[pos].semqueue);
-      list_del(new);
-      struct task_struct * task = list_head_to_task_struct(new);
-      update_process_state_rr(task, &readyqueue);
-    }
-  }
-  else return -1;
-  return 0;
+  return sem_destroy(semaphores[pos]);
 }
 
 
@@ -343,7 +309,7 @@ int sys_pipe(int * pd) {
   short primer= 0, segon = 0;
   int tfa = -1;
   int i = 2;
-  while ((!primer && !segon) || i < NUM_CHANELS) {
+  while ((!primer && !segon) || i < NUM_CHANELS) {    //<----- ESTO ESTA MAL,
     if (current()->Channels.entrys[i].fd == -1 && !segon && !primer) primer = i;
     else if( current()->Channels.entrys[i].fd == -1 && primer) segon = i;
     ++i;
@@ -355,11 +321,11 @@ int sys_pipe(int * pd) {
   }
 
   if (tfa == -1) return -1; // CAMBIAR No se puede crear mas pipes
+
   int frame = alloc_frame();
-
   if (frame == -1) return -1; //CAMBIAR No hay memoria suficiente.
-  int freeSem = get_free_sem();
 
+  int freeSem = get_free_sem();
   if (freeSem == -1) return -1; //CAMBIAR no hay semaforos disponilbes.
 
   page_table_entry * pt = get_PT(current());
@@ -382,6 +348,8 @@ int sys_pipe(int * pd) {
   tfas_table.tfas[tfa].availablebytes = 4096;
   tfas_table.tfas[tfa].nreaders = 1;
   tfas_table.tfas[tfa].nwriters = 1;
+  int sem = sys_sem_init(123, 1);
+  //if (sem != 0) printk("No se puede crear la pipe");
   tfas_table.tfas[tfa].semaphore =  sys_sem_init(123, 1);
   tfas_table.tfas[tfa].frame = frame;
   tfas_table.tfas[tfa].initialPointer = initPosPipe;
@@ -393,28 +361,57 @@ int sys_pipe(int * pd) {
   return 0;
 }
 
-int sys_read(int fd, char * buff, int count) {
+int sys_read(int fd, void * buff, int count) {
 
-  int ret;
+  /*int ret;
   ret = check_fd(fd, READ_ONLY);
   if (ret != 0) return ret;
-  if (*buff == NULL) return -EFAULT; //BUSCAR MAS TARDE QUE PONER AQUÍ
+  if (buff == NULL) return -EFAULT; //BUSCAR MAS TARDE QUE PONER AQUÍ
   if (count <= 0 || count >= -EINVAL);
 
   struct tfa  * file = current()->Channels.entrys[fd].file;
   int rest = count;
-  char a[count];
-  int i = 0;
-  while (rest > 0) {
-    for(; (i < count) && (file->nextRead != file->nextWritten); ++i) {
-      a[i] = *(file->nextRead);
-      ++file->nextRead;
-      if (file->nextRead == file->initialPointer+4096) *(file->nextRead) = *(file->initialPointer);
-    }
-    rest = count - i;
-    if (file->nextRead == file->nextWritten); //AQUI SE TIENE QUE BLOQUEAR;
-  }
-  copy_to_user(*a, *buff, count);
 
+  char * buff = "mensaje que se tiene que leer";
+  //comprobamos que haya datos que leer, sino nos bloqueamos
+  if (file->availablebytes == 4096) {
+    sys_sem_wait(file->semaphore);
+  }
+  else {
+    if (file->nextWritten > file->nextRead) {
+      if (file->nextRead + count > file->nextWritten) {
+        copy_to_user((void *) file->nextRead, buff, (file->nextWritten - file->nextRead));
+        file->nextRead = file->nextWritten;
+        file->availablebytes = 4096;
+      }
+      else {
+        copy_to_user((void *) file->nextRead, buff, count);
+        file->nextRead += count;
+      }
+    }
+    else {
+      if (file->nextRead + count < file->initialPointer+4096){
+        copy_to_user((void *) file->nextRead, buff, count);
+        file->nextRead += count;
+        file->availablebytes -= count;
+      }
+      else {
+        copy_to_user((void *) file->nextRead, buff, (file->initialPointer + 4096 - file->nextRead));
+        file->nextRead = file->initialPointer;
+        file->availablebytes -=  (file->initialPointer + 4096 - file->nextRead);
+        rest = count - (file->initialPointer + 4096 - file->nextRead);
+        if (file->nextRead + rest > file->nextWritten) {
+          copy_to_user((void *) file->nextRead, buff, (file->nextWritten - file->nextRead));
+          file->nextRead = file->nextWritten;
+          file->availablebytes = 4096;
+        }
+        else {
+          copy_to_user(file->nextRead, buff, rest);
+          file->nextRead += count;
+          file->availablebytes -= rest;
+        }
+      }
+    }
+  }*/
   return 0;
 }

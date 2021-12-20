@@ -36,7 +36,8 @@ struct list_head freequeue;
 // Ready queue
 struct list_head readyqueue;
 
-Semaphore semaphores[NR_SEMAPHORES];
+struct Semaphore semaphores[NR_SEMAPHORES];
+struct openFileTable tfa;
 
 void init_stats(struct stats *s)
 {
@@ -199,9 +200,7 @@ void init_task1(void)
 
   c->state=ST_RUN;
 
-  for(int i = 0; i < NUM_CHANELS; ++i) {
-    c->Channels.entrys[i].fd = -1;
-  }
+  for(int i = 0; i < NUM_CHANELS; ++i)  c->tc[i].fd = -1;
 
   remaining_quantum=c->total_quantum;
 
@@ -280,4 +279,5 @@ void init_semaphores(){
     semaphores[i].sem_id = -1;
     semaphores[i].pid_owner = -1;
   }
+  printk("\nInicializamos el vector de semaforos. :D");
 }

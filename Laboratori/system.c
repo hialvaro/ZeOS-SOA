@@ -6,12 +6,12 @@
 #include <types.h>
 #include <interrupt.h>
 #include <hardware.h>
+#include <sem.h>
 #include <system.h>
 #include <sched.h>
 #include <mm.h>
 #include <io.h>
 #include <utils.h>
-#include <sem.h>
 #include <tfa.h>
 //#include <zeos_mm.h> /* TO BE DELETED WHEN ADDED THE PROCESS MANAGEMENT CODE TO BECOME MULTIPROCESS */
 

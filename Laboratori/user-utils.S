@@ -207,6 +207,22 @@ ENTRY(read)
 	mov $17, %eax // Syscall 21 is sem_init
 	sysenter
 
+
+	ENTRY(sem_close)
+		push %ebp
+		mov %esp, %ebp
+		push %ecx
+		push %ebx
+		//mov 12(%ebp), %ecx   // count
+		mov 8(%ebp), %ebx    // sem_id
+		lea ret_from_sem, %eax
+		push %eax
+		push %ebp
+		movl %esp, %ebp
+		mov $16, %eax // Syscall 21 is sem_init
+		sysenter
+
+
 	/** Common Semaphores code
 ret_from_sem:
   pop %ebp

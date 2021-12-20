@@ -4,8 +4,9 @@
 
 #define MAX_TFAS 30
 #include <list.h>
+#include <sem.h>
 
-struct tfa {
+struct openFile {
 
   //TTY info
   char * nextRead;
@@ -13,18 +14,19 @@ struct tfa {
   int availablebytes;
   int nreaders;
   int nwriters;
-  int semaphore;
+  struct Semaphore semRead;
+  struct Semaphore semWrite;
   int frame;
   char * initialPointer;
 };
 
-struct tfas_table {
+struct openFileTable {
 
   int users [MAX_TFAS];
-  struct tfa tfas [MAX_TFAS];
+  struct openFile tfas [MAX_TFAS];
 };
 
-struct tfas_table tfas_table;
+int ini_fa(int n, char * iniP, int frame);
 
 
 #endif /* TABLA DE FICHEROS ABIERTOS */

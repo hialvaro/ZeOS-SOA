@@ -1,6 +1,6 @@
 #include <libc.h>
 
-char buff[24];
+//char buff[24];
 
 int pid;
 
@@ -66,11 +66,23 @@ int __attribute__ ((__section__(".text.main")))
     mesg = "\nbye";
   }
   write(1, mesg, strlen(mesg));
-  sem_signal(4);
-  */
-  sem_init(123, 1);
+  sem_signal(4);*/
+
   int pd[2], p;
   p = pipe(pd);
-  if (p==0) write(1,"funciona bien",strlen("funciona bien"));
+
+  pid = fork();
+  if (pid>0) {
+
+    char buffer[29];
+    read(pd[0], (void*) &buffer, 29);
+    write(1,buffer,31);
+  }
+  else {
+    char *a = "\nPorque no funciona, puta vida.";
+    write(pd[1], a, 30);
+  }
+
+  write(1,"\nVoy a entrar al while.", strlen("\nVoy a entrar al while."));
   while(1){}
 }

@@ -18,52 +18,50 @@
 
 #include <tfa.h>
 
-#include <sys.h>
+//#include <sys.h>
 
 
-void init_tfas_table();
+int init(int sem_id, unsigned int count, struct Semaphore *s) {
 
-int sem_init(int sem_id, unsigned int count, struct Semaphore s) {
-
-  s.sem_id = sem_id;
-  s.count = count;
-  s.pid_owner = current()->PID;
-  INIT_LIST_HEAD(&s.semqueue);
+  s->sem_id = sem_id;
+  s->count = count;
+  s->pid_owner = current()->PID;
+  INIT_LIST_HEAD(&(s->semqueue));
 
   return 0;
 }
 
-int sem_wait(struct Semaphore s){
+int wait(struct Semaphore *s){
 
-  if (s.count <= 0) {
-    list_add_tail(&(current()->list), &s.semqueue);
+  if (s->count <= 0) {
+    list_add_tail(&(current()->list), &(s->semqueue));
     sched_next_rr();
   }
-  else --s.count;
+  else --(s->count);
 
   return 0;
 }
 
-int sem_signal(int sem_id, struct Semaphore s){
+int signal(struct Semaphore *s) {
 
-  if (list_empty(&s.semqueue)) ++s.count;
+  if (list_empty(&(s->semqueue))) ++(s->count);
   else {
-
-    struct list_head *new = list_first(&s.semqueue);
+    struct list_head *new = list_first(& (s->semqueue));
     list_del(new);
     struct task_struct * task = list_head_to_task_struct(new);
     update_process_state_rr(task,&readyqueue);
 
-    return 0;
+  }
+  return 0;
 }
 
-int sem_destroy(struct Semaphore s) {
+int destroy(struct Semaphore *s) {
 
-  if (current()->PID == s.pid_owner) {
-    s.sem_id = -1;
-    s.count = -1;
-    while(!list_empty(&s.semqueue)) {
-      struct list_head * new = list_first(&s.semqueue);
+  if (current()->PID == s->pid_owner) {
+    s->sem_id = -1;
+    s->count = -1;
+    while(!list_empty(&(s->semqueue))) {
+      struct list_head * new = list_first(&(s->semqueue));
       list_del(new);
       struct task_struct * task = list_head_to_task_struct(new);
       update_process_state_rr(task, &readyqueue);
@@ -71,20 +69,4 @@ int sem_destroy(struct Semaphore s) {
   }
   else return -1;
   return 0;
-}
-
-int sem_destroy(struct Semaphore s) {
-
-  if (current()->PID == s.pid_owner) {
-    s.sem_id = -1;
-    s.count = -1;
-    while (!list_empty(&s.semqueue)) {
-
-      struct listhead *new = list_first(&s.semqueue)
-      list_del(new);
-      struct task_struct *task = list_head_to_task_struct(new);
-      update_process_state_rr(task, &readyqueue);
-    }
-  }
-  else return -1;                                                   // No ha creado el semaforo
 }

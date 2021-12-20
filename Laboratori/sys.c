@@ -35,7 +35,7 @@ int check_fd(int fd, int permissions)
 
 int myCheck_fd(int fd, enum mode_t mode) {
 
-  struct entry *e = &current()->Channels.entrys[fd];
+  struct entry *e = &current()->tc[fd];
   if (! e->fd) return -EBADF;
   if (! (e->mode == mode)) return -EACCES;
   return 0;
@@ -131,6 +131,27 @@ int sys_fork(void)
     copy_data((void*)(pag<<12), (void*)((pag+NUM_PAG_DATA)<<12), PAGE_SIZE);
     del_ss_pag(parent_PT, pag+NUM_PAG_DATA);
   }
+  //AQUÍ AÑADIMOS LAS PIPES QUE TENGA EL PADRE ASOCIADO
+  // AÑADIMOS LA PIPE A LA TABLA DE CANALES.
+  int files[MAX_TFAS] = {0};
+  //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------Pendiente de mirar talvez es una patinada
+  for (int i = 2; i < NUM_CHANELS; ++i) {
+    if (current()->tc[i].fd > 0) {
+      struct openFile * file = current()->tc[i].file;
+      int nfile = current()->tc[i].pos;
+      if (files[i] == 0) {
+        set_ss_pag(process_PT, PAG_LOG_INIT_DATA+NUM_PAG_DATA+nfile, file->frame);
+        ++files[i];
+      }
+      else {
+        if (current()->tc[i].mode==READ_ONLY) ++(file->nreaders);
+        if (current()->tc[i].mode==WRITE_ONLY) ++(file->nwriters);
+      }
+      ++tfa.users[nfile];
+    }
+  }
+
+
   /* Deny access to the child's memory space */
   set_cr3(get_DIR(current()));
 
@@ -163,43 +184,98 @@ int sys_fork(void)
 
 #define TAM_BUFFER 512
 
-int sys_write(int fd, char *buffer, int nbytes) {
-char localbuffer [TAM_BUFFER];
-int bytes_left;
-int ret;
+int sys_write(int fd, char *buff, int nbytes) {
 
-	if ((ret = check_fd(fd, ESCRIPTURA)))
-		return ret;
-	if (nbytes < 0)
-		return -EINVAL;
-	if (!access_ok(VERIFY_READ, buffer, nbytes))
-		return -EFAULT;
+  if (fd == 1) {
+    char localbuffer [TAM_BUFFER];
+    int bytes_left;
+    int ret;
 
-	bytes_left = nbytes;
-	while (bytes_left > TAM_BUFFER) {
-		copy_from_user(buffer, localbuffer, TAM_BUFFER);
-		ret = sys_write_console(localbuffer, TAM_BUFFER);
-		bytes_left-=ret;
-		buffer+=ret;
-	}
-	if (bytes_left > 0) {
-		copy_from_user(buffer, localbuffer,bytes_left);
-		ret = sys_write_console(localbuffer, bytes_left);
-		bytes_left-=ret;
-	}
-	return (nbytes-bytes_left);
+	   if ((ret = check_fd(fd, ESCRIPTURA)))
+		   return ret;
+	   if (nbytes < 0)
+		   return -EINVAL;
+	   if (!access_ok(VERIFY_READ, buff, nbytes))
+		   return -EFAULT;
+
+	   bytes_left = nbytes;
+	   while (bytes_left > TAM_BUFFER) {
+		     copy_from_user(buff, localbuffer, TAM_BUFFER);
+		     ret = sys_write_console(localbuffer, TAM_BUFFER);
+		     bytes_left-=ret;
+		     buff+=ret;
+	   }
+	   if (bytes_left > 0) {
+		     copy_from_user(buff, localbuffer,bytes_left);
+		     ret = sys_write_console(localbuffer, bytes_left);
+		     bytes_left-=ret;
+	  }
+	  return (nbytes-bytes_left);
+  }
+  else {
+    int ret;
+    ret = myCheck_fd(fd, WRITE_ONLY);
+    if (ret != 0) return ret;
+
+    if (buff == NULL) return -EFAULT; //BUSCAR MAS TARDE QUE PONER AQUÍ
+    if (nbytes <= 0 || nbytes >= -EINVAL);
+    struct openFile  * file = current()->tc[fd].file;
+    int rest = nbytes;
+
+    while (rest > 0) {
+
+      if (file->availablebytes == 0) wait(& (file->semRead));
+      if (file->nextWritten < file->nextRead) {
+        if (file->nextWritten + rest >= file->nextRead) {
+          printk("\nif 1 W. \n");
+          copy_from_user( buff, (void *) &(file->nextWritten), (file->nextRead - file->nextWritten));
+          file->nextWritten = file->nextRead;
+          file->availablebytes = 0;
+          rest -=  (file->nextRead - file->nextWritten);
+          buff = (void *) (((char * ) buff) + (file->nextRead - file->nextWritten));
+        }
+        else {
+          printk("\nif 2 W. \n");
+          copy_from_user(buff, (void *) &(file->nextWritten), rest);
+          file->nextWritten += rest;
+          file->availablebytes -= rest;
+          rest = 0;
+        }
+      }
+      else {
+        if (file->nextWritten + rest < file->initialPointer+4096){
+          if (file->nextWritten == file->initialPointer) printk("\nescribe des de el comienzo.");
+          else printk("\nescribe lee des de el comienzo.");
+          printk("\nif 3 W. \n");
+          copy_from_user((void *) buff, (void *) &(file->nextWritten), rest);
+          file->nextWritten += rest;
+          file->availablebytes -= rest;
+          rest = 0;
+        }
+        else {
+          printk("\nif 4 W. \n");
+          copy_from_user(buff, (void *) &(file->nextWritten), (file->initialPointer + 4096 - file->nextWritten));
+          file->nextWritten = file->initialPointer;
+          file->availablebytes -=  (file->initialPointer + 4096 - file->nextWritten);
+          rest -= (file->initialPointer + 4096 - file->nextWritten);
+          buff = (void *) (((char * ) buff) + (file->initialPointer + 4096 - file->nextWritten));
+
+        }
+      }
+    }
+    if(file->semWrite.count <= 0) signal(& (file->semWrite));
+    return 0;
+    }
 }
 
 
 extern int zeos_ticks;
 
-int sys_gettime()
-{
+int sys_gettime() {
   return zeos_ticks;
 }
 
-void sys_exit()
-{
+void sys_exit() {
   int i;
 
   page_table_entry *process_PT = get_PT(current());
@@ -221,16 +297,14 @@ void sys_exit()
 }
 
 /* System call to force a task switch */
-int sys_yield()
-{
+int sys_yield() {
   force_task_switch();
   return 0;
 }
 
 extern int remaining_quantum;
 
-int sys_get_stats(int pid, struct stats *st)
-{
+int sys_get_stats(int pid, struct stats *st) {
   int i;
 
   if (!access_ok(VERIFY_WRITE, st, sizeof(struct stats))) return -EFAULT;
@@ -273,7 +347,7 @@ int sys_sem_init(int sem_id, unsigned int count) {
 	int pos = get_free_sem();
 	if (pos == -1) return -1;                           // No hay espació para crear un semaforo.
 
-  return sem_init(sem_id, count, semaphores[pos]);
+  return init(sem_id, count, &semaphores[pos]);
 }
 
 int sys_sem_wait(int sem_id) {
@@ -282,7 +356,7 @@ int sys_sem_wait(int sem_id) {
   if (sem_id < 0 || (pos == -1)) return -1;          // El semaforo no existe.
   if (semaphores[pos].pid_owner == -1) return -1;
 
-  return sem_wait(semaphores[pos]);
+  return wait(&semaphores[pos]);
 }
 
 int sys_sem_signal(int sem_id) {
@@ -291,7 +365,7 @@ int sys_sem_signal(int sem_id) {
   if (sem_id < 0 || (pos == -1)) return -1;                            // No existe el semaforo.
   if (semaphores[pos].pid_owner == -1) return -1;
 
-  return sem_singal();
+  return signal(&semaphores[pos]);
 }
 
 int sys_sem_destroy(int sem_id) {
@@ -299,61 +373,54 @@ int sys_sem_destroy(int sem_id) {
   int pos = get_sem_pos_from_id(sem_id);
   if (sem_id < 0 || (pos == -1)) return -1;               // No existe el semaforo.
 
-  return sem_destroy(semaphores[pos]);
+  return destroy(&semaphores[pos]);
 }
 
 
 int sys_pipe(int * pd) {
+
   printk("\nEntro en sys_pipe.\n");
   //Primero de todo comprobamos si se puede crear una nueva pipe, y donde colocarlos en las tablas.
-  short primer= 0, segon = 0;
-  int tfa = -1;
+  short primer = 0, segon = 0;
+  int nfile = -1;
   int i = 2;
-  while ((!primer && !segon) || i < NUM_CHANELS) {    //<----- ESTO ESTA MAL,
-    if (current()->Channels.entrys[i].fd == -1 && !segon && !primer) primer = i;
-    else if( current()->Channels.entrys[i].fd == -1 && primer) segon = i;
-    ++i;
-  }
 
-  if (!segon) return -1;  //CAMBIAR no hay más canales disponibles del proceso.}
-  for (i= 0; i < MAX_TFAS && tfa == -1; ++i) {
-    if(tfas_table.users[i] == 0) tfa = i;
+  for (int i = 2; i < NUM_CHANELS; ++i) {
+    if (current()->tc[i].fd == -1) {
+      if (primer == 0) primer = i;
+      else if (segon == 0) segon = i;
+      else break;
+    }
   }
+  if (!segon || !primer) return -1;                 //CAMBIAR no hay más canales disponibles del proceso.}
 
-  if (tfa == -1) return -1; // CAMBIAR No se puede crear mas pipes
+
+  for (i= 0; i < MAX_TFAS && nfile == -1; ++i)
+    if(tfa.users[i] == 0) nfile = i;
+  if (nfile == -1) return -1;                         // CAMBIAR No se puede crear mas pipes
 
   int frame = alloc_frame();
-  if (frame == -1) return -1; //CAMBIAR No hay memoria suficiente.
+  if (frame == -1) return -1;                       //CAMBIAR No hay memoria suficiente.
 
-  int freeSem = get_free_sem();
-  if (freeSem == -1) return -1; //CAMBIAR no hay semaforos disponilbes.
-
+  // AÑADIMOS LA PIPE A LA TABLA DE CANALES.
   page_table_entry * pt = get_PT(current());
-  int newLogicalPage = PAG_LOG_INIT_DATA+NUM_PAG_DATA+tfa;
+  int newLogicalPage = PAG_LOG_INIT_DATA+NUM_PAG_DATA+nfile;
   set_ss_pag(pt, newLogicalPage, frame);
 
-  current()->Channels.entrys[primer].fd = primer;
-  current()->Channels.entrys[segon].fd = segon;
-  current()->Channels.entrys[primer].mode = READ_ONLY;
-  current()->Channels.entrys[primer].mode = WRITE_ONLY;
-  current()->Channels.entrys[primer].file = &(tfas_table.tfas[tfa]);
-  current()->Channels.entrys[segon].file = &(tfas_table.tfas[tfa]);
+  current()->tc[primer].fd = primer;
+  current()->tc[segon].fd = segon;
+  current()->tc[primer].mode = READ_ONLY;
+  current()->tc[segon].mode = WRITE_ONLY;
+  current()->tc[primer].pos = nfile;
+  current()->tc[segon].pos  = nfile;
+  current()->tc[primer].file = &(tfa.tfas[nfile]);
+  current()->tc[segon].file = &(tfa.tfas[nfile]);
 
 
+  // AÑADIMOS LA PIPE A LA TFA Y CREAMOS EL BUFFER.
   char * initPosPipe = (char*)(  ((unsigned long)(newLogicalPage)) << 12  );
 
-  tfas_table.users[tfa] = 1;
-  tfas_table.tfas[tfa].nextWritten = initPosPipe;
-  tfas_table.tfas[tfa].nextRead = initPosPipe;
-  tfas_table.tfas[tfa].availablebytes = 4096;
-  tfas_table.tfas[tfa].nreaders = 1;
-  tfas_table.tfas[tfa].nwriters = 1;
-  int sem = sys_sem_init(123, 1);
-  //if (sem != 0) printk("No se puede crear la pipe");
-  tfas_table.tfas[tfa].semaphore =  sys_sem_init(123, 1);
-  tfas_table.tfas[tfa].frame = frame;
-  tfas_table.tfas[tfa].initialPointer = initPosPipe;
-
+  ini_fa(nfile, initPosPipe, frame);
   pd[0] = primer;
   pd[1] = segon;
   printk("\nLo hace todo sin petar ole los caracole.\n");
@@ -363,55 +430,78 @@ int sys_pipe(int * pd) {
 
 int sys_read(int fd, void * buff, int count) {
 
-  /*int ret;
-  ret = check_fd(fd, READ_ONLY);
+  // COMPROVAMOS QUE SE EXISTA EL CANAL Y EL BUFFER SEA VALIDO
+  int ret;
+  ret = myCheck_fd(fd, READ_ONLY);
   if (ret != 0) return ret;
+
   if (buff == NULL) return -EFAULT; //BUSCAR MAS TARDE QUE PONER AQUÍ
   if (count <= 0 || count >= -EINVAL);
-
-  struct tfa  * file = current()->Channels.entrys[fd].file;
+  struct openFile  * file = current()->tc[fd].file;
   int rest = count;
 
-  char * buff = "mensaje que se tiene que leer";
+  /*
+  char * p = "Pasame esta.";
+  void * d = & (file->nextRead);
+  file->nextWritten += 12;
+  file->availablebytes -= 12;
+  copy_from_user((void *) p, d, 12);
+  rest = 12;
+  printk("\ncopiado al pipe");*/
   //comprobamos que haya datos que leer, sino nos bloqueamos
-  if (file->availablebytes == 4096) {
-    sys_sem_wait(file->semaphore);
-  }
-  else {
+  while (rest > 0) {
+
+    if (file->availablebytes == 4096) wait(& (file->semWrite));
     if (file->nextWritten > file->nextRead) {
-      if (file->nextRead + count > file->nextWritten) {
-        copy_to_user((void *) file->nextRead, buff, (file->nextWritten - file->nextRead));
+      if (file->nextRead + rest >= file->nextWritten) {
+        printk("\nif 1");
+        copy_to_user((void *) &(file->nextRead), buff, (file->nextWritten - file->nextRead));
         file->nextRead = file->nextWritten;
         file->availablebytes = 4096;
+        rest -=  (file->nextWritten - file->nextRead);
+        buff = (void *) (((char * ) buff) + (file->nextWritten - file->nextRead));
       }
       else {
-        copy_to_user((void *) file->nextRead, buff, count);
-        file->nextRead += count;
+        printk("\nif 2\n");
+        if (file->nextRead == file->initialPointer) printk("\nlee des de el comienzo.");
+        else printk("\nNo lee des de el comienzo.");
+        copy_to_user((void *) &(file->nextRead), buff, rest);
+        file->nextRead += rest;
+        file->availablebytes += rest;
+        rest = 0;
       }
     }
     else {
-      if (file->nextRead + count < file->initialPointer+4096){
-        copy_to_user((void *) file->nextRead, buff, count);
-        file->nextRead += count;
-        file->availablebytes -= count;
+      if (file->nextRead + rest < file->initialPointer+4096){
+        printk("\nif 3");
+        copy_to_user((void *) &(file->nextRead), buff, rest);
+        file->nextRead += rest;
+        file->availablebytes += rest;
+        rest = 0;
       }
       else {
-        copy_to_user((void *) file->nextRead, buff, (file->initialPointer + 4096 - file->nextRead));
+        printk("\nif 4");
+        copy_to_user((void *) &(file->nextRead), buff, (file->initialPointer + 4096 - file->nextRead));
         file->nextRead = file->initialPointer;
-        file->availablebytes -=  (file->initialPointer + 4096 - file->nextRead);
-        rest = count - (file->initialPointer + 4096 - file->nextRead);
-        if (file->nextRead + rest > file->nextWritten) {
-          copy_to_user((void *) file->nextRead, buff, (file->nextWritten - file->nextRead));
-          file->nextRead = file->nextWritten;
-          file->availablebytes = 4096;
-        }
-        else {
-          copy_to_user(file->nextRead, buff, rest);
-          file->nextRead += count;
-          file->availablebytes -= rest;
-        }
+        file->availablebytes +=  (file->initialPointer + 4096 - file->nextRead);
+        rest -= (file->initialPointer + 4096 - file->nextRead);
+        buff = (void *) (((char * ) buff) + (file->initialPointer + 4096 - file->nextRead));
+
       }
     }
-  }*/
+
+  }
+  if(file->semRead.count <= 0) signal(& (file->semRead));
   return 0;
+}
+
+void sys_close(int fd) {
+
+  struct openFile  * file = current()->tc[fd].file;
+  current()->tc[fd].fd = -1;
+
+  if (current()->tc[fd].mode=READ_ONLY)   --(file->nreaders);
+  if (current()->tc[fd].mode=WRITE_ONLY)  --(file->nwriters);
+  --tfa.users[current()->tc[fd].pos];
+
 }

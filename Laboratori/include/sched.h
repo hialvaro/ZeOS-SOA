@@ -25,12 +25,8 @@ enum mode_t {READ_ONLY, WRITE_ONLY};
 struct entry {
   int fd;
   enum mode_t mode;
-  struct tfa * file;
-};
-
-//Taula de canals d'un proces.
-struct tableOfChannels {
-  struct entry entrys [NUM_CHANELS];
+  int pos;
+  struct openFile * file;
 };
 
 struct task_struct {
@@ -41,7 +37,7 @@ struct task_struct {
   enum state_t state;		/* State of the process */
   int total_quantum;		/* Total quantum of the process */
   struct stats p_stats;		/* Process stats */
-  struct tableOfChannels Channels;
+  struct entry tc[NUM_CHANELS];
 };
 
 union task_union {
@@ -60,7 +56,9 @@ extern struct task_struct *idle_task;
 
 extern struct list_head freequeue;
 extern struct list_head readyqueue;
-extern Semaphore semaphores[NR_SEMAPHORES];
+
+extern struct Semaphore semaphores[NR_SEMAPHORES];
+extern struct openFileTable tfa;
 
 /* Inicialitza les dades del proces inicial */
 
@@ -98,5 +96,6 @@ int needs_sched_rr();
 void update_sched_data_rr();
 
 void init_stats(struct stats *s);
+void init_semaphores();
 
 #endif  /* __SCHED_H__ */

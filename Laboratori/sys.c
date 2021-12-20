@@ -140,7 +140,7 @@ int sys_fork(void)
       struct openFile * file = current()->tc[i].file;
       int nfile = current()->tc[i].pos;
       if (files[i] == 0) {
-        set_ss_pag(process_PT, PAG_LOG_INIT_DATA+NUM_PAG_DATA+nfile, file->frame);
+        set_ss_pag(process_PT, PAG_LOG_INIT_DATA+10+nfile, file->frame);
         ++files[i];
       }
       else {
@@ -415,7 +415,7 @@ int sys_pipe(int * pd) {
 
   // AÑADIMOS LA PIPE A LA TABLA DE CANALES.
   page_table_entry * pt = get_PT(current());
-  int newLogicalPage = PAG_LOG_INIT_DATA+NUM_PAG_DATA+nfile;
+  int newLogicalPage = PAG_LOG_INIT_DATA+10+nfile;
   set_ss_pag(pt, newLogicalPage, frame);
 
   current()->tc[primer].fd = primer;

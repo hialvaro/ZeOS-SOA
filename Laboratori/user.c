@@ -73,7 +73,6 @@ int __attribute__ ((__section__(".text.main")))
   
   pid = fork();
   if (pid>0) {
-
     char b[31];
     void *q = b;
     read(pd[0],q, 31);

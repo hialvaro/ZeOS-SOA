@@ -44,8 +44,6 @@ int wait(struct Semaphore *s){
 }
 
 int signal(struct Semaphore *s) {
-
-  printk("\nEnvio signal");
   if (list_empty(&(s->semqueue))) ++(s->count);
   else {
     //++(s->count);

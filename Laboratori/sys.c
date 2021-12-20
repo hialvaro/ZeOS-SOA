@@ -242,10 +242,9 @@ int sys_write(int fd, char *buff, int nbytes) {
     while (rest > 0) {
 
       if (file->nreaders <= 0) return -EPIPE;
-      if (file->availablebytes == 0) {printk("\nmebloqueo."); wait(& (file->semRead));printk("\nNomebloqueo.");}
+      if (file->availablebytes == 0) wait(& (file->semRead));
       if (file->nextWritten < file->nextRead) {
         if (file->nextWritten + rest >= file->nextRead) {
-          printk("\nif 1 W. \n");
           copy_from_user( buff, (void *) file->nextWritten, (file->nextRead - file->nextWritten));
           file->nextWritten = file->nextRead;
           file->availablebytes = 0;
@@ -253,7 +252,6 @@ int sys_write(int fd, char *buff, int nbytes) {
           buff = (void *) (((char * ) buff) + (file->nextRead - file->nextWritten));
         }
         else {
-          printk("\nif 2 W. \n");
           copy_from_user(buff, (void *) &(file->nextWritten), rest);
           file->nextWritten += rest;
           file->availablebytes -= rest;
@@ -262,17 +260,12 @@ int sys_write(int fd, char *buff, int nbytes) {
       }
       else {
         if (file->nextWritten + rest < file->initialPointer+4096){
-
-          //if (file->nextWritten == file->initialPointer) printk("\nescribe des de el comienzo.");
-          //else printk("\nescribe lee des de el comienzo.");
-
           copy_from_user((void *) buff, (void *) file->nextWritten, rest);
           file->nextWritten += rest;
           file->availablebytes -= rest;
           rest = 0;
         }
         else {
-          printk("\nif 4 W. \n");
           copy_from_user(buff, (void *) file->nextWritten, (file->initialPointer + 4096 - file->nextWritten));
           file->nextWritten = file->initialPointer;
           file->availablebytes -=  (file->initialPointer + 4096 - file->nextWritten);
@@ -403,8 +396,6 @@ int sys_sem_destroy(int sem_id) {
 
 
 int sys_pipe(int * pd) {
-
-  printk("\nEntro en sys_pipe.\n");
   //Primero de todo comprobamos si se puede crear una nueva pipe, y donde colocarlos en las tablas.
   short primer = 0, segon = 0;
   int nfile = -1;
@@ -448,7 +439,6 @@ int sys_pipe(int * pd) {
   ini_fa(nfile, initPosPipe, frame);
   pd[0] = primer;
   pd[1] = segon;
-  printk("\nLo hace todo sin petar ole los caracole.\n");
 
   return 0;
 }
@@ -469,10 +459,9 @@ int sys_read(int fd, void * buff, int count) {
   while (rest > 0) {
 
     if (file->nwriters <= 0) return count-rest;
-    if (file->availablebytes == 4096) { printk("\nmebloqueo."); wait(& (file->semWrite)); printk("\nNo me bloqueo.");}
+    if (file->availablebytes == 4096)  wait(& (file->semWrite));
     if (file->nextWritten > file->nextRead) {
       if (file->nextRead + rest > file->nextWritten) {
-        printk("\nif 1");
         copy_to_user((void *) file->nextRead, buff, (file->nextWritten - file->nextRead));
         file->nextRead = file->nextWritten;
         file->availablebytes = 4096;
@@ -480,11 +469,7 @@ int sys_read(int fd, void * buff, int count) {
         buff = (void *) (((char * ) buff) + (file->nextWritten - file->nextRead));
       }
       else {
-        printk("\nif 2\n");
-        if (file->nextRead == file->initialPointer) printk("\nlee des de el comienzo.");
-        else printk("\nNo lee des de el comienzo.");
         copy_to_user((void *) file->nextRead, buff, rest);
-        printk("\nHago el copy");
         file->nextRead += rest;
         file->availablebytes = 4096;
         rest = 0;
@@ -493,14 +478,12 @@ int sys_read(int fd, void * buff, int count) {
     }
     else {
       if (file->nextRead + rest < file->initialPointer+4096){
-        printk("\nif 3");
         copy_to_user((void *) file->nextRead, buff, rest);
         file->nextRead += rest;
         file->availablebytes += rest;
         rest = 0;
       }
       else {
-        printk("\nif 4");
         copy_to_user((void *) file->nextRead, buff, (file->initialPointer + 4096 - file->nextRead));
         file->nextRead = file->initialPointer;
         file->availablebytes +=  (file->initialPointer + 4096 - file->nextRead);

@@ -279,5 +279,5 @@ void init_semaphores(){
     semaphores[i].sem_id = -1;
     semaphores[i].pid_owner = -1;
   }
-  printk("\nInicializamos el vector de semaforos. :D");
+  printk("\nVector de semaforos inicializado.");
 }

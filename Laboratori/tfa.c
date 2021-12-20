@@ -14,7 +14,7 @@ int init_tfas_table() {
   for(int i = 0; i < MAX_TFAS; ++i)
     tfa.users[i] = 0;
 
-  printk("\n Tabla de ficheros abiertos inicializada. :D \n");
+  printk("\nTabla de ficheros abiertos inicializada.\n");
   return 0;
 }
 

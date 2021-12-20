@@ -244,10 +244,21 @@ int sys_write(int fd, char *buff, int nbytes) {
       }
       else {
         if (file->nextWritten + rest < file->initialPointer+4096){
+
           if (file->nextWritten == file->initialPointer) printk("\nescribe des de el comienzo.");
           else printk("\nescribe lee des de el comienzo.");
+
+          /*char * p = "\nPasame esta.";
+          void * d =(void *) file->nextWritten;
+          file->availablebytes -= 14;
+          copy_from_user((void *) p, d, 14);
+          file->nextWritten += 14;
+          rest = 14;
+          if (file->nextRead == file->initialPointer) printk("\nposición read correcta.");
+          printk("\ncopiado al pipe");*/
+
           printk("\nif 3 W. \n");
-          copy_from_user((void *) buff, (void *) &(file->nextWritten), rest);
+          copy_from_user((void *) buff, (void *) file->nextWritten, rest);
           file->nextWritten += rest;
           file->availablebytes -= rest;
           rest = 0;
@@ -440,20 +451,21 @@ int sys_read(int fd, void * buff, int count) {
   struct openFile  * file = current()->tc[fd].file;
   int rest = count;
 
-  /*
-  char * p = "Pasame esta.";
-  void * d = & (file->nextRead);
-  file->nextWritten += 12;
-  file->availablebytes -= 12;
-  copy_from_user((void *) p, d, 12);
-  rest = 12;
+  //if (file->nextWritten == file->nextRead) printk("\ntrue");
+  /*char * p = "\nPasame esta.";
+  void * d =(void *) file->nextWritten;
+  file->availablebytes -= 14;
+  copy_from_user((void *) p, d, 14);
+  file->nextWritten += 14;
+  rest = 14;
+  if (file->nextRead == file->initialPointer) printk("\nposición read correcta.");
   printk("\ncopiado al pipe");*/
   //comprobamos que haya datos que leer, sino nos bloqueamos
   while (rest > 0) {
 
     if (file->availablebytes == 4096) wait(& (file->semWrite));
     if (file->nextWritten > file->nextRead) {
-      if (file->nextRead + rest >= file->nextWritten) {
+      if (file->nextRead + rest > file->nextWritten) {
         printk("\nif 1");
         copy_to_user((void *) &(file->nextRead), buff, (file->nextWritten - file->nextRead));
         file->nextRead = file->nextWritten;
@@ -465,10 +477,12 @@ int sys_read(int fd, void * buff, int count) {
         printk("\nif 2\n");
         if (file->nextRead == file->initialPointer) printk("\nlee des de el comienzo.");
         else printk("\nNo lee des de el comienzo.");
-        copy_to_user((void *) &(file->nextRead), buff, rest);
+        copy_to_user((void *) file->nextRead, buff, rest);
+        printk("\nHago el copy");
         file->nextRead += rest;
         file->availablebytes += rest;
         rest = 0;
+
       }
     }
     else {
@@ -500,8 +514,8 @@ void sys_close(int fd) {
   struct openFile  * file = current()->tc[fd].file;
   current()->tc[fd].fd = -1;
 
-  if (current()->tc[fd].mode=READ_ONLY)   --(file->nreaders);
-  if (current()->tc[fd].mode=WRITE_ONLY)  --(file->nwriters);
+  if (current()->tc[fd].mode==READ_ONLY)   --(file->nreaders);
+  if (current()->tc[fd].mode==WRITE_ONLY)  --(file->nwriters);
   --tfa.users[current()->tc[fd].pos];
 
 }

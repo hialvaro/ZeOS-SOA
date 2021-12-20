@@ -70,18 +70,24 @@ int __attribute__ ((__section__(".text.main")))
 
   int pd[2], p;
   p = pipe(pd);
-
+  
   pid = fork();
   if (pid>0) {
 
-    char buffer[29];
-    read(pd[0], (void*) &buffer, 29);
-    write(1,buffer,31);
+    char b[31];
+    void *q = b;
+    read(pd[0],q, 31);
+    write(1,b,31);
   }
   else {
     char *a = "\nPorque no funciona, puta vida.";
-    write(pd[1], a, 30);
+    write(pd[1], a, 31);
   }
+  /*
+  char b[14];
+  char buff[14];
+  read(pd[0],b,14);
+  write(1,b,14);*/
 
   write(1,"\nVoy a entrar al while.", strlen("\nVoy a entrar al while."));
   while(1){}

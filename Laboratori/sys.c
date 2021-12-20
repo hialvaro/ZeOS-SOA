@@ -69,6 +69,7 @@ int ret_from_fork()
 
 void sys_close(int fd) {
 
+  if(current()->tc[fd].fd <= 0) return -1;
   struct openFile  * file = current()->tc[fd].file;
   current()->tc[fd].fd = -1;
 

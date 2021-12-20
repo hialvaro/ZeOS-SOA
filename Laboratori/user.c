@@ -10,7 +10,7 @@ int __attribute__ ((__section__(".text.main")))
     /* Next line, tries to move value 0 to CR3 register. This register is a privileged one, and so it will raise an exception */
      /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-  /*
+  
   //Test de semaforos inicializar
   char * mesg = "\nTest de los los semaforos:";
   write(1, mesg, strlen(mesg));
@@ -66,49 +66,28 @@ int __attribute__ ((__section__(".text.main")))
     mesg = "\nbye";
   }
   write(1, mesg, strlen(mesg));
-  sem_signal(4);*/
+  sem_signal(4);
 
   int pd[2], p;
-    p = pipe(pd);
-    int finhijo = 0;
-    pid = fork();
-    if (pid>0) {
-      //write(1, "\n----PADRE-----", strlen("\n----PADRE-----"));
-      char *a = "\nEl padre ha puesto esto en el pipe.";
-      char *b = "\nEl padre ha puesto esto en el hola.";
-      int i = 0;
-      while(1) {
-        if (i%2==0) write(pd[1], a, 37);
-        else write(pd[1], b, 37);
-
-        write(1,"\n----------------------------", strlen("\n----------------------------"));
-        ++i;
-      }
-
-      //write(1, "\n---------------", strlen("\n---------------"));
+  p = pipe(pd);
+  pid = fork();    
+  if (pid>0) {
+    char *a = "\nEl padre ha puesto adeu en el pipe.";
+    char *b = "\nEl padre ha puesto hola en el pipe.";
+    int i = 0;
+    while(1) {
+      if (i%2==0)write(pd[1], a, 37);
+      else write(pd[1], b, 37);
+      ++i;
+    }      
+  }
+  else {
+    char b[37];
+    void *q = b;
+    while(1) {        
+      read(pd[0],q, 37);
+      write(1,b,37);
     }
-    else {
-      //write(1, "\n------Hijo------", strlen("\n------Hijo------"));
-      char b[37];
-      void *q = b;
-      while(1) {
-        read(pd[0],q, 37);
-        write(1,b,37);
-      }
-
-      //finhijo = 1;
-      //write(1, "\n-----------------", strlen("\n-----------------"));
-    }
-    /*while (! finhijo);
-    char t[37];
-    void *d = t;
-    close(pd[0]);
-
-    if (read(pd[0], d, 37) > -1) write(1, d, 37);
-
-    if (pid <= 0) exit();*/
-
-    while(1){}
-
+  }
   while(1){}
 }

@@ -34,6 +34,7 @@ int init(int sem_id, unsigned int count, struct Semaphore *s) {
 int wait(struct Semaphore *s){
 
   if (s->count <= 0) {
+    //--(s->count);
     list_add_tail(&(current()->list), &(s->semqueue));
     sched_next_rr();
   }
@@ -44,8 +45,10 @@ int wait(struct Semaphore *s){
 
 int signal(struct Semaphore *s) {
 
+  printk("\nEnvio signal");
   if (list_empty(&(s->semqueue))) ++(s->count);
   else {
+    //++(s->count);
     struct list_head *new = list_first(& (s->semqueue));
     list_del(new);
     struct task_struct * task = list_head_to_task_struct(new);

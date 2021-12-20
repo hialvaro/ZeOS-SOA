@@ -67,6 +67,22 @@ int ret_from_fork()
   return 0;
 }
 
+void sys_close(int fd) {
+
+  struct openFile  * file = current()->tc[fd].file;
+  current()->tc[fd].fd = -1;
+
+  if (current()->tc[fd].mode==READ_ONLY)   --(file->nreaders);
+  if (current()->tc[fd].mode==WRITE_ONLY)  --(file->nwriters);
+  --tfa.users[current()->tc[fd].pos];
+
+  page_table_entry *process_PT = get_PT(current());
+  if (tfa.users[current()->tc[fd].pos] == 0) {
+    free_frame(tfa.tfas[current()->tc[fd].pos].frame);
+    del_ss_pag(process_PT, PAG_LOG_INIT_DATA+10+current()->tc[fd].pos);
+  }
+}
+
 int sys_fork(void)
 {
   struct list_head *lhcurrent = NULL;
@@ -218,12 +234,13 @@ int sys_write(int fd, char *buff, int nbytes) {
     if (ret != 0) return ret;
 
     if (buff == NULL) return -EFAULT; //BUSCAR MAS TARDE QUE PONER AQUÍ
-    if (nbytes <= 0 || nbytes >= -EINVAL);
+    //if (nbytes <= 0 || nbytes >= -EINVAL);
     struct openFile  * file = current()->tc[fd].file;
     int rest = nbytes;
 
     while (rest > 0) {
 
+      if (file->nreaders <= 0) return -EPIPE;
       if (file->availablebytes == 0) wait(& (file->semRead));
       if (file->nextWritten < file->nextRead) {
         if (file->nextWritten + rest >= file->nextRead) {
@@ -292,6 +309,12 @@ void sys_exit() {
   page_table_entry *process_PT = get_PT(current());
 
   // Deallocate all the propietary physical pages
+  for(int i = 2; i < NUM_CHANELS; ++i) {
+    if(current()->tc[i].fd > 0) {
+      sys_close(i);
+    }
+  }
+
   for (i=0; i<NUM_PAG_DATA; i++)
   {
     free_frame(get_frame(process_PT, PAG_LOG_INIT_DATA+i));
@@ -447,7 +470,7 @@ int sys_read(int fd, void * buff, int count) {
   if (ret != 0) return ret;
 
   if (buff == NULL) return -EFAULT; //BUSCAR MAS TARDE QUE PONER AQUÍ
-  if (count <= 0 || count >= -EINVAL);
+  //if (count <= 0 || count >= -EINVAL);
   struct openFile  * file = current()->tc[fd].file;
   int rest = count;
 
@@ -463,11 +486,12 @@ int sys_read(int fd, void * buff, int count) {
   //comprobamos que haya datos que leer, sino nos bloqueamos
   while (rest > 0) {
 
+    if (file->nwriters <= 0) { printk("saldo dentro del while.");return count-rest; }
     if (file->availablebytes == 4096) wait(& (file->semWrite));
     if (file->nextWritten > file->nextRead) {
       if (file->nextRead + rest > file->nextWritten) {
         printk("\nif 1");
-        copy_to_user((void *) &(file->nextRead), buff, (file->nextWritten - file->nextRead));
+        copy_to_user((void *) file->nextRead, buff, (file->nextWritten - file->nextRead));
         file->nextRead = file->nextWritten;
         file->availablebytes = 4096;
         rest -=  (file->nextWritten - file->nextRead);
@@ -488,14 +512,14 @@ int sys_read(int fd, void * buff, int count) {
     else {
       if (file->nextRead + rest < file->initialPointer+4096){
         printk("\nif 3");
-        copy_to_user((void *) &(file->nextRead), buff, rest);
+        copy_to_user((void *) file->nextRead, buff, rest);
         file->nextRead += rest;
         file->availablebytes += rest;
         rest = 0;
       }
       else {
         printk("\nif 4");
-        copy_to_user((void *) &(file->nextRead), buff, (file->initialPointer + 4096 - file->nextRead));
+        copy_to_user((void *) file->nextRead, buff, (file->initialPointer + 4096 - file->nextRead));
         file->nextRead = file->initialPointer;
         file->availablebytes +=  (file->initialPointer + 4096 - file->nextRead);
         rest -= (file->initialPointer + 4096 - file->nextRead);
@@ -506,16 +530,5 @@ int sys_read(int fd, void * buff, int count) {
 
   }
   if(file->semRead.count <= 0) signal(& (file->semRead));
-  return 0;
-}
-
-void sys_close(int fd) {
-
-  struct openFile  * file = current()->tc[fd].file;
-  current()->tc[fd].fd = -1;
-
-  if (current()->tc[fd].mode==READ_ONLY)   --(file->nreaders);
-  if (current()->tc[fd].mode==WRITE_ONLY)  --(file->nwriters);
-  --tfa.users[current()->tc[fd].pos];
-
+  return 16;
 }

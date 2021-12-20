@@ -208,7 +208,7 @@ ENTRY(read)
 	sysenter
 
 
-	ENTRY(sem_close)
+	ENTRY(close)
 		push %ebp
 		mov %esp, %ebp
 		push %ecx

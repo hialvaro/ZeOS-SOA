@@ -70,24 +70,28 @@ int __attribute__ ((__section__(".text.main")))
 
   int pd[2], p;
   p = pipe(pd);
-  
+  int finhijo = 0;
   pid = fork();
   if (pid>0) {
+    char *a = "\nPorque no funciona, puta vida.";
+    write(pd[1], a, 31);
+    write(1, "\nsoy el padre.", strlen("\nsoy el padre."));
+  }
+  else {
     char b[31];
     void *q = b;
     read(pd[0],q, 31);
+    write(1, "\nsoy el hijo.", strlen("\nsoy el hijo."));
     write(1,b,31);
+    finhijo = 1;
   }
-  else {
-    char *a = "\nPorque no funciona, puta vida.";
-    write(pd[1], a, 31);
-  }
-  /*
-  char b[14];
-  char buff[14];
-  read(pd[0],b,14);
-  write(1,b,14);*/
+  //while (! finhijo);
+  char t[31];
+  void *d = t;
+  //write(1,"\nVoy a entrar al while.", strlen("\nVoy a entrar al while."));
+  //close(pd[0]);
 
-  write(1,"\nVoy a entrar al while.", strlen("\nVoy a entrar al while."));
+  if (read(pd[0], d, 31) == 16) write(1, d, 31);
+
   while(1){}
 }

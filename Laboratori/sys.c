@@ -486,8 +486,8 @@ int sys_read(int fd, void * buff, int count) {
   //comprobamos que haya datos que leer, sino nos bloqueamos
   while (rest > 0) {
 
-    if (file->nwriters <= 0) { printk("saldo dentro del while.");return count-rest; }
-    if (file->availablebytes == 4096) wait(& (file->semWrite));
+    if (file->nwriters <= 0) return count-rest;
+    if (file->availablebytes == 4096) { printk("\nmebloqueo."); wait(& (file->semWrite)); printk("\nNo me bloqueo.");}
     if (file->nextWritten > file->nextRead) {
       if (file->nextRead + rest > file->nextWritten) {
         printk("\nif 1");
@@ -504,7 +504,7 @@ int sys_read(int fd, void * buff, int count) {
         copy_to_user((void *) file->nextRead, buff, rest);
         printk("\nHago el copy");
         file->nextRead += rest;
-        file->availablebytes += rest;
+        file->availablebytes = 4096;
         rest = 0;
 
       }

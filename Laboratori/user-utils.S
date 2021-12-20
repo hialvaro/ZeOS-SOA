@@ -200,7 +200,7 @@ ENTRY(read)
 	movl 0x8(%ebp), %ebx;	//fd
 	movl 0xC(%ebp), %ecx;	//buffer
 	movl 0x10(%ebp), %edx;	//size
-	lea ret_from_sem, %eax
+	lea ret_from_read, %eax
 	push %eax
 	push %ebp
 	movl %esp, %ebp
@@ -223,18 +223,18 @@ ENTRY(read)
 		sysenter
 
 
-	/** Common Semaphores code
-ret_from_sem:
+// Common Semaphores code
+ret_from_read:
   pop %ebp
 	add $4, %esp
-	cmp $0, %eax
-	je end_sem // Si no hay error, salta a fin
+	cmpl $-1, %eax
+	jg end_read // Si no hay error, salta a fin
 	lea errno, %ebx
 	mov %eax, (%ebx)
 	mov $-1, %eax
-end_sem:
+end_read:
 	pop %ebx
 	pop %ecx
 	mov %ebp, %esp
 	pop %ebp
-	ret*/
+	ret

@@ -91,7 +91,7 @@ int __attribute__ ((__section__(".text.main")))
   //write(1,"\nVoy a entrar al while.", strlen("\nVoy a entrar al while."));
   //close(pd[0]);
 
-  if (read(pd[0], d, 31) == 16) write(1, d, 31);
+  if (read(pd[0], d, 31) >= 0) write(1, d, 31);
 
   while(1){}
 }

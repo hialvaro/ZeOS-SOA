@@ -209,7 +209,7 @@ Esto será exactamente igual para cualquier dispositivo lógico y cualquier disp
 
 De este modo, el sistema operativo es totalmente independiente al dispositivo físico que se conecta. Es el fabricante quien se debe preocupar para ofrecer los drivers.
 
-![1.png](Teoria/img/1.png)
+![1.png](https://github.com/hialvaro/ZeOS-SOA/blob/main/Teoria/img/1.png)
 
 ### Aparece un problema
 
@@ -225,7 +225,7 @@ Debemos modificar el `sys_read` de modo que vamos a solapar la entrada/salida de
 
 Recordamos el ciclo de vida de un proceso. Los procesos se crean en estado `ready`, luego se pasan a ejecutar en `run` y cuando están haciendo operaciones de larga latencia pasan al estado `blocked`, a continuación un proceso en estado `ready` se pasará a `run`. Una vez la operación de larga latencia haya finalizado, se pasará a `ready` de nuevo. 
 
-![2.png](Teoria/img/2.png)
+![2.png](https://github.com/hialvaro/ZeOS-SOA/blob/main/Teoria/img/2.png)
 
 El estado de `blocked` es necesario para poder aprovechar los tiempos de larga latencia para ejecutar otros procesos.
 
@@ -235,7 +235,7 @@ Para ello, se crea un nuevo proceso de sistema llamado **gestor** que será quie
 
 Para esto, el puntero al *device_descriptor* dentro de la tabla de inodos no será el *device_descriptor* que ataque directamente al driver, sinó que habrá un segundo *device_descriptor* con los punteros a las **funciones dependientes del gestor**. Antes se atacaba a través del *device_descriptor* directamente al driver del dispositivo físico. Ahora, a través de un *device descriptor* secundario se atacará a funciones dependientes de un proceso llamado **gestor** el cual acabará atacando a las funciones del driver del dispositivo físico.
 
-![3.png](Teoria/img/3.png)
+![3.png](https://github.com/hialvaro/ZeOS-SOA/blob/main/Teoria/img/3.png)
 
 De este modo, cuando un proceso haga una entrada/salida el proceso no ocupará la CPU, sino que el **gestor** a medida que pueda realizará las entradas/salidas a través del driver mientras el proceso está bloqueado. La latencia se la queda el gestor y de este modo otros procesos se pueden ir ejecutando.
 
@@ -247,7 +247,7 @@ El gestor irá leyendo peticiones de la cola, hará las operaciones al driver y 
 
 Con esto `sys_read` hará los accesos a todas las tablas que hemos visto antes del mismo modo; cuando llegue al punto de coger el puntero al *device descriptor* ahora lo que tendrá será un puntero para hacer peticiones al **gestor**. El `sys_read` hará un `read_dependiente` que encolará una petición al **gestor** en la `q_iorb` y se esperará al resultado en la `q_iofin`.
 
-![4.png](Teoria/img/4.png)
+![4.png](https://github.com/hialvaro/ZeOS-SOA/blob/main/Teoria/img/4.png)
 
 Una vez la petición ha sido encolada a la cola de **iorbs**, el proceso será sacado del estado `run` para que otro proceso pueda pasar a ejecutarse.
 
@@ -269,7 +269,7 @@ La función del gestor `coger_pet()` (ver diagrama anterior), no va a estar cons
 
 En el caso de que no haya peticiones el gestor estará **bloqueado** y se desbloqueará cuando, como mínimo, haya una petición. Para conseguir esto, se añade un **semáforo** (`sem_gest`) para cada uno de los gestores inicializado a cero. El gestor, al empezar a ejecutarse (y antes de `coger_pet()`), hará un `sem_wait(sem_gest)`; este `sem_wait` será bloqueante hasta que como mínimo haya una petición. Sabremos que como mínimo hay una petición cuando el `read_dep()` encole una petición en la `q_iorbs`. Así que vamos a tener que hacer un `sem_signal` (o `sem_post` es lo mismo) cuando se haya encolado una petición para desbloquear el gestor. Así tendremos un semaforo por cada petición.
 
-![5.png](Teoria/img/5.png)
+![5.png](https://github.com/hialvaro/ZeOS-SOA/blob/main/Teoria/img/5.png)
 
 Por último debemos tener en cuenta que las dos colas (`q_iorbs` y `q_iofin`) deben ser accedidas en exclusión mutua. El gestor está sacando **iorbs** de la `q_iorbs` y metiendo resultados en la cola `q_iofin` mientras que puede haber otros threads de usuario que pueden estar haciendo peticiones y cogiendo resultados de estas mismas colas.
 
@@ -339,7 +339,7 @@ El VFS alocata inodos virtuales, una estructura propia del VFS. Dentro del inodo
 > "Me das unos datos que yo no entiendo. Yo me guardo una referencia a estos datos. Y cuando yo, como VFS, esté hablando de este dispositivo lógico pasaré el puntero y el SFS se busca la vida."
 > > Pajuelo.
 
-![6.png](Teoria/img/6.png)
+![6.png](https://github.com/hialvaro/ZeOS-SOA/blob/main/Teoria/img/6.png)
 
 La unidad mínima de transferencia de datos de un sistema operativo hacia un dispositivo es el **bloque de datos**. El sistema no sabe lo que son sectores. Dentro de los inodos también tenemos **bloques de datos**.
 

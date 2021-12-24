@@ -4,7 +4,11 @@
 
 ### ZeOS - Práctica laboratorio
 
-En la carpeta [Laboratori](https://github.com/hialvaro/ZeOS-SOA/tree/main/Laboratori) se encuentra todo el código de ZeOS que he entregado para la práctica de lab. Está prácticamente todo comentado explicando qué se hace en cada líena. Además **recomiendo mucho** mirar el [historial de commits](https://github.com/hialvaro/ZeOS-SOA/commits/) para ver detalladamente los cambios se he ido haciendo **paso a paso**.
+En la carpeta [Laboratori](https://github.com/hialvaro/ZeOS-SOA/tree/main/Laboratori) se encuentra todo el código de ZeOS que he entregado para la práctica de lab. 
+
+Está prácticamente todo comentado explicando qué se hace en cada líena. Además **recomiendo mucho** mirar el [historial de commits](https://github.com/hialvaro/ZeOS-SOA/commits/) para ver detalladamente los cambios se he ido haciendo **paso a paso**.
+
+La nota final de estas entregas ha sido un `8.5`.
 
 ### Exámenes de laboratorio
 

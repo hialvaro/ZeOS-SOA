@@ -1,7 +1,7 @@
 # ZeOS-SOA 2021-2022 - Proyecto Pipes
 ### Project mark: `7`
 
-En esta rama se encuentra el proyecto de SOA. Básicamente era implementar pipes. A continuación el enunciado:
+En esta rama se encuentra el proyecto de SOA. Básicamente era implementar pipes. A continuación el enunciado (puedes encontrarlo completo en los archivos del repo):
 
 ## Description of the project
 Mr. Baka Baka, as a visionary of the Operating System market, has realized that ZeOS has a lot of

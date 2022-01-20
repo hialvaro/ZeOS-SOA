@@ -14,11 +14,15 @@ La nota final de estas entregas ha sido un `8.5`.
 
 En la carpeta [Examens](https://github.com/hialvaro/ZeOS-SOA/tree/main/Examens) se puede encontrar mi exámen de laboratorio (con las respuestas que he entregado). Además, también hay otra carpeta con algunas soluciones que implementé para practicar para el exámen.
 
+La  nota del exámen de laboratorio fue un `8`.
+
 ### ZeOS - Proyecto laboratorio
 
 Hay una rama (branch) aparte con todo lo que está relacionado con el proyecto de laboratorio. Este proyecto consiste en implementar **pipes** en ZeOS.
 
 - [Rama del proyecto](https://github.com/hialvaro/ZeOS-SOA/tree/projecte) - Ver historial de commits para ver detalladamente el proceso de implementación.
+
+La nota del projecte ha estat un `7`.
 
 ## 🖊️ Teoría
 

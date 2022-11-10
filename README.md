@@ -1,5 +1,15 @@
 # ZeOS-SOA 2021-2022
 
+- [Teoría](#-teoria)
+- [Laboratorio](#-laboratorio)
+  - [Práctica Lab](#zeos---práctica-laboratorio)
+  - [Exámen Lab(y ejercicios)](#exámenes-de-laboratorio)
+  - [Proyecto Lab](#zeos---proyecto-laboratorio)
+
+## 🖊️ Teoría
+
+En la carpeta [Teoria](https://github.com/hialvaro/ZeOS-SOA/tree/main/Teoria) hay un resumen en pdf que elaboré a partir de las clases de teoría. Evidentemente este resumen no es un sustituto de las clases, pero sí es bastante completo.
+
 ##  👨‍💻 Laboratorio
 
 ### ZeOS - Práctica laboratorio
@@ -23,7 +33,3 @@ Hay una rama (branch) aparte con todo lo que está relacionado con el proyecto d
 - [Rama del proyecto](https://github.com/hialvaro/ZeOS-SOA/tree/projecte) - Ver historial de commits para ver detalladamente el proceso de implementación.
 
 La nota del projecte ha estat un `7`.
-
-## 🖊️ Teoría
-
-En la carpeta [Teoria](https://github.com/hialvaro/ZeOS-SOA/tree/main/Teoria) hay un resumen en pdf de teoría que elaboré a partir de las clases de teoría. Evidentemente este resumen no es un sustituto de las clases, pero sí es bastante completo.
